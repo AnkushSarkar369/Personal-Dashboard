@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Habit Radar Tracker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #1e3a5f 100%);
+      color: white;
+      min-height: 100vh;
+      padding: 1rem;
+      position: relative;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .container {
+      max-width: 64rem;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+    h1 {
+      font-size: 2.75rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 2rem;
+      background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+      text-shadow: 0 0 40px rgba(96, 165, 250, 0.3);
+    }
+    .card {
+      background: rgba(30, 41, 59, 0.4);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      border-color: rgba(148, 163, 184, 0.2);
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+    }
+    .time-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .time-btn {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 0.5rem;
+      background: rgba(51, 65, 85, 0.5);
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      font-family: 'Montserrat', sans-serif;
+    }
+    .time-btn.active {
+      background: rgba(59, 130, 246, 0.25);
+      color: #60a5fa;
+      border-color: rgba(96, 165, 250, 0.3);
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    }
+    .time-btn:hover:not(.active) {
+      background: rgba(51, 65, 85, 0.7);
+      border-color: rgba(148, 163, 184, 0.2);
+      transform: translateY(-1px);
+    }
+    .stats {
+      text-align: center;
+      font-size: 1.4rem;
+      margin-bottom: 1.5rem;
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+    .stats span {
+      color: #60a5fa;
+      font-weight: 700;
+      text-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
+    }
+    .habit-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+      cursor: grab;
+      transition: all 0.2s ease;
+      background: rgba(51, 65, 85, 0.2);
+      border: 1px solid rgba(148, 163, 184, 0.05);
+    }
+    .habit-item:hover {
+      background: rgba(51, 65, 85, 0.4);
+      border-color: rgba(148, 163, 184, 0.15);
+      transform: translateX(4px);
+    }
+    .habit-item.dragging {
+      opacity: 0.5;
+      cursor: grabbing;
+    }
+    .habit-item.archived {
+      opacity: 0.4;
+      background: rgba(51, 65, 85, 0.1);
+    }
+    .habit-item.archived:hover {
+      opacity: 0.6;
+    }
+    .drag-handle {
+      cursor: grab;
+      font-size: 1.2rem;
+      color: #64748b;
+      transition: color 0.2s ease;
+    }
+    .habit-item:hover .drag-handle {
+      color: #94a3b8;
+    }
+    .habit-checkbox {
+      width: 1.35rem;
+      height: 1.35rem;
+      cursor: pointer;
+      accent-color: #3b82f6;
+      transition: transform 0.1s ease;
+    }
+    .habit-checkbox:checked {
+      animation: checkPop 0.3s ease;
+    }
+    @keyframes checkPop {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+    .habit-name {
+      flex: 1;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+    .habit-input {
+      flex: 1;
+      padding: 0.5rem;
+      background: rgba(51, 65, 85, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 0.25rem;
+      color: white;
+      font-size: 1rem;
+      font-family: 'Montserrat', sans-serif;
+      transition: all 0.2s ease;
+    }
+    .habit-input:focus {
+      outline: none;
+      border-color: rgba(96, 165, 250, 0.5);
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+    }
+    .color-picker {
+      width: 2rem;
+      height: 2rem;
+      border: 2px solid rgba(148, 163, 184, 0.2);
+      border-radius: 0.25rem;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .color-picker:hover {
+      border-color: rgba(148, 163, 184, 0.4);
+      transform: scale(1.1);
+    }
+    .icon-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0.35rem;
+      transition: all 0.2s ease;
+      border-radius: 0.25rem;
+    }
+    .icon-btn:hover {
+      color: #cbd5e1;
+      background: rgba(148, 163, 184, 0.1);
+      transform: scale(1.1);
+    }
+    .delete-btn:hover {
+      color: #f87171;
+      background: rgba(248, 113, 113, 0.1);
+    }
+    .archive-btn:hover {
+      color: #fbbf24;
+      background: rgba(251, 191, 36, 0.1);
+    }
+    .streak-badge {
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      color: white;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    }
+    .add-section {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .new-habit-input {
+      flex: 1;
+      padding: 0.85rem 1.2rem;
+      background: rgba(51, 65, 85, 0.4);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 0.5rem;
+      color: white;
+      font-size: 1rem;
+      font-family: 'Montserrat', sans-serif;
+      transition: all 0.2s ease;
+    }
+    .new-habit-input:focus {
+      outline: none;
+      border-color: rgba(96, 165, 250, 0.5);
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+      background: rgba(51, 65, 85, 0.6);
+    }
+    .new-habit-input::placeholder {
+      color: rgba(148, 163, 184, 0.5);
+    }
+    .add-btn {
+      padding: 0.85rem 1.75rem;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      border: none;
+      border-radius: 0.5rem;
+      color: white;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      font-family: 'Montserrat', sans-serif;
+    }
+    .add-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+    }
+    .add-btn:active {
+      transform: translateY(0);
+    }
+    #chartCanvas {
+      max-height: 420px;
+      filter: drop-shadow(0 4px 16px rgba(59, 130, 246, 0.2));
+    }
+    .export-section {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+    .export-btn {
+      padding: 0.6rem 1.2rem;
+      background: rgba(51, 65, 85, 0.4);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 0.5rem;
+      color: #cbd5e1;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .export-btn:hover {
+      background: rgba(51, 65, 85, 0.6);
+      border-color: rgba(148, 163, 184, 0.3);
+      transform: translateY(-1px);
+    }
+    .history-section {
+      margin-top: 2rem;
+    }
+    .history-section h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+    .date-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: rgba(51, 65, 85, 0.2);
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+      border: 1px solid rgba(148, 163, 184, 0.05);
+      transition: all 0.2s ease;
+    }
+    .date-row:hover {
+      background: rgba(51, 65, 85, 0.3);
+      border-color: rgba(148, 163, 184, 0.1);
+    }
+    .date-label {
+      min-width: 100px;
+      font-weight: 500;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .delete-date-btn {
+      background: none;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      padding: 0.25rem;
+      font-size: 0.9rem;
+      opacity: 0;
+      transition: all 0.2s ease;
+    }
+    .date-row:hover .delete-date-btn {
+      opacity: 1;
+    }
+    .delete-date-btn:hover {
+      color: #f87171;
+      transform: scale(1.2);
+    }
+    .date-habits {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      flex: 1;
+    }
+    .date-habit-check {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.9rem;
+      padding: 0.25rem 0.5rem;
+      background: rgba(30, 41, 59, 0.3);
+      border-radius: 0.25rem;
+      transition: all 0.2s ease;
+    }
+    .date-habit-check:hover {
+      background: rgba(30, 41, 59, 0.5);
+    }
+    .date-habit-check input[type="checkbox"] {
+      width: 1rem;
+      height: 1rem;
+    }
+    .archived-indicator {
+      color: #fbbf24;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      background: rgba(251, 191, 36, 0.1);
+      border-radius: 0.25rem;
+    }
+    .month-group {
+      margin-bottom: 1rem;
+    }
+    .month-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: rgba(51, 65, 85, 0.4);
+      border-radius: 0.5rem;
+      cursor: pointer;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      transition: all 0.2s ease;
+      margin-bottom: 0.5rem;
+    }
+    .month-header:hover {
+      background: rgba(51, 65, 85, 0.6);
+      border-color: rgba(148, 163, 184, 0.25);
+    }
+    .month-title {
+      flex: 1;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+    .month-toggle {
+      font-size: 1.2rem;
+      color: #94a3b8;
+      transition: transform 0.2s ease;
+    }
+    .month-toggle.collapsed {
+      transform: rotate(-90deg);
+    }
+    .month-content {
+      max-height: 2000px;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+      opacity: 1;
+    }
+    .month-content.collapsed {
+      max-height: 0;
+      opacity: 0;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card {
+      animation: fadeIn 0.4s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Habit Radar</h1>
+    
+    <div id="chartCard" class="card" style="display: none;">
+      <div class="time-buttons">
+        <button class="time-btn active" onclick="setTimeWindow(7)">7 Days</button>
+        <button class="time-btn" onclick="setTimeWindow(21)">21 Days</button>
+        <button class="time-btn" onclick="setTimeWindow('all')">All Time</button>
+      </div>
+      <div class="stats" id="statsDisplay"></div>
+      <canvas id="chartCanvas"></canvas>
+    </div>
+
+    <div class="card">
+      <div id="habitList"></div>
+    </div>
+
+    <div class="add-section">
+      <input 
+        type="text" 
+        id="newHabitInput" 
+        class="new-habit-input" 
+        placeholder="New habit"
+        onkeydown="if(event.key==='Enter') addHabit()"
+      >
+      <button class="add-btn" onclick="addHabit()">
+        <span>+</span> Add
+      </button>
+    </div>
+
+    <div class="export-section">
+      <button class="export-btn" onclick="exportToCSV()">📥 Export CSV</button>
+      <label class="export-btn" style="cursor: pointer;">
+        📤 Import CSV
+        <input type="file" accept=".csv" onchange="importFromCSV(event)" style="display: none;">
+      </label>
+      <button class="export-btn" onclick="openDatePicker()">📅 Add Date</button>
+    </div>
+
+    <div id="datePickerModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; backdrop-filter: blur(8px);" onclick="if(event.target === this) closeDatePicker()">
+      <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(16px); padding: 2rem; border-radius: 1rem; border: 1px solid rgba(148, 163, 184, 0.2); box-shadow: 0 20px 60px rgba(0,0,0,0.5); min-width: 320px;">
+        <h3 style="margin-bottom: 1rem; color: #cbd5e1; font-size: 1.25rem; font-weight: 600;">Add Date to History</h3>
+        <input type="date" id="datePickerInput" style="width: 100%; padding: 0.75rem; background: rgba(51, 65, 85, 0.5); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 0.5rem; color: white; font-size: 1rem; font-family: 'Montserrat', sans-serif; margin-bottom: 1rem;">
+        <div style="display: flex; gap: 0.5rem;">
+          <button onclick="closeDatePicker()" style="flex: 1; padding: 0.75rem; background: rgba(51, 65, 85, 0.5); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 0.5rem; color: #cbd5e1; cursor: pointer; font-weight: 500; font-family: 'Montserrat', sans-serif;">Cancel</button>
+          <button onclick="addCustomDate()" style="flex: 1; padding: 0.75rem; background: linear-gradient(135deg, #3b82f6, #2563eb); border: none; border-radius: 0.5rem; color: white; cursor: pointer; font-weight: 600; font-family: 'Montserrat', sans-serif; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">Add Date</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card history-section">
+      <h2>History</h2>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <script>
+    let habits = [];
+    let history = {};
+    let timeWindow = 7;
+    let editingId = null;
+    let chart = null;
+    let draggedElement = null;
+
+    function openDatePicker() {
+      document.getElementById('datePickerModal').style.display = 'block';
+      document.getElementById('datePickerInput').value = getTodayDate();
+    }
+
+    function closeDatePicker() {
+      document.getElementById('datePickerModal').style.display = 'none';
+    }
+
+    function addCustomDate() {
+      const dateInput = document.getElementById('datePickerInput').value;
+      if (!dateInput) {
+        alert('Please select a date!');
+        return;
+      }
+
+      if (!history[dateInput]) {
+        history[dateInput] = {};
+      }
+
+      save();
+      render();
+      closeDatePicker();
+
+      setTimeout(() => {
+        const dateRows = document.querySelectorAll('.date-row');
+        for (let row of dateRows) {
+          if (row.textContent.includes(dateInput) || row.querySelector(`[onchange*="${dateInput}"]`)) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.style.background = 'rgba(59, 130, 246, 0.2)';
+            setTimeout(() => {
+              row.style.background = '';
+            }, 2000);
+            break;
+          }
+        }
+      }, 100);
+    }
+
+    function init() {
+      const saved = localStorage.getItem('habitRadarData');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        habits = parsed.habits || [];
+        history = parsed.history || {};
+      }
+      render();
+    }
+
+    function save() {
+      localStorage.setItem('habitRadarData', JSON.stringify({ habits, history }));
+    }
+
+    function addHabit() {
+      const input = document.getElementById('newHabitInput');
+      const name = input.value.trim();
+      if (!name) return;
+
+      const mutedColors = ['#94a3b8', '#7dd3fc', '#a78bfa', '#f472b6', '#fb923c', '#34d399', '#fbbf24'];
+      const randomColor = mutedColors[Math.floor(Math.random() * mutedColors.length)];
+
+      habits.push({
+        id: Date.now(),
+        name: name,
+        color: randomColor,
+        archived: false
+      });
+      input.value = '';
+      save();
+      render();
+    }
+
+    function removeHabit(id) {
+      if (!confirm('Delete this habit permanently?')) return;
+      
+      habits = habits.filter(h => h.id !== id);
+      
+      Object.keys(history).forEach(date => {
+        delete history[date][id];
+      });
+      
+      save();
+      render();
+    }
+
+    function toggleArchive(id) {
+      habits = habits.map(h => h.id === id ? { ...h, archived: !h.archived } : h);
+      save();
+      render();
+    }
+
+    function startEdit(id, name) {
+      editingId = id;
+      render();
+      const input = document.getElementById(`edit-${id}`);
+      if (input) {
+        input.focus();
+        input.value = name;
+      }
+    }
+
+    function finishEdit(id) {
+      const input = document.getElementById(`edit-${id}`);
+      const newName = input.value.trim();
+      if (newName) {
+        habits = habits.map(h => h.id === id ? { ...h, name: newName } : h);
+        save();
+      }
+      editingId = null;
+      render();
+    }
+
+    function updateColor(id, color) {
+      habits = habits.map(h => h.id === id ? { ...h, color } : h);
+      save();
+      render();
+    }
+
+    function toggleHabit(id, date = null) {
+      const targetDate = date || getTodayDate();
+      if (!history[targetDate]) history[targetDate] = {};
+      history[targetDate][id] = !history[targetDate][id];
+      save();
+      render();
+    }
+
+    function getTodayDate() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function setTimeWindow(days) {
+      timeWindow = days;
+      document.querySelectorAll('.time-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      render();
+    }
+
+    function getCompletionRate(habitId) {
+      if (timeWindow === 'all') {
+        // All time: get all dates where this habit exists in history
+        let completed = 0;
+        let total = 0;
+        
+        Object.keys(history).forEach(date => {
+          total++;
+          if (history[date][habitId]) completed++;
+        });
+
+        return { completed, total, percentage: total > 0 ? Math.round((completed / total) * 100) : 0 };
+      }
+
+      // For 7 and 21 days
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - timeWindow + 1);
+
+      let completed = 0;
+      let total = 0;
+
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        total++;
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const key = `${year}-${month}-${day}`;
+        if (history[key] && history[key][habitId]) completed++;
+      }
+
+      return { completed, total, percentage: Math.round((completed / total) * 100) || 0 };
+    }
+
+    function getStreak(habitId) {
+      const today = new Date();
+      let streak = 0;
+      
+      for (let i = 0; i < 365; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const key = `${year}-${month}-${day}`;
+        
+        if (history[key] && history[key][habitId]) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      
+      return streak;
+    }
+
+    function getOverallStats() {
+      if (timeWindow === 'all') {
+        let totalCompleted = 0;
+        let totalPossible = 0;
+
+        const activeHabits = habits.filter(h => !h.archived);
+
+        Object.keys(history).forEach(date => {
+          activeHabits.forEach(h => {
+            totalPossible++;
+            if (history[date] && history[date][h.id]) totalCompleted++;
+          });
+        });
+
+        return {
+          completed: totalCompleted,
+          total: totalPossible,
+          percentage: totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0
+        };
+      }
+
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - timeWindow + 1);
+
+      let totalCompleted = 0;
+      let totalPossible = 0;
+
+      const activeHabits = habits.filter(h => !h.archived);
+
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const key = `${year}-${month}-${day}`;
+        activeHabits.forEach(h => {
+          totalPossible++;
+          if (history[key] && history[key][h.id]) totalCompleted++;
+        });
+      }
+
+      return {
+        completed: totalCompleted,
+        total: totalPossible,
+        percentage: totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0
+      };
+    }
+
+    function exportToCSV() {
+      if (habits.length === 0) {
+        alert('No habits to export!');
+        return;
+      }
+
+      const allDates = Object.keys(history).sort();
+      
+      let csv = 'Date,' + habits.map(h => h.name).join(',') + '\n';
+      
+      allDates.forEach(date => {
+        const row = [date];
+        habits.forEach(h => {
+          row.push(history[date][h.id] ? '1' : '0');
+        });
+        csv += row.join(',') + '\n';
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'habit-tracker-' + new Date().toISOString().split('T')[0] + '.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+
+    function importFromCSV(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const lines = e.target.result.split('\n').filter(l => l.trim());
+          if (lines.length < 2) {
+            alert('CSV file is empty or invalid!');
+            return;
+          }
+
+          const headers = lines[0].split(',').map(h => h.trim());
+          const habitNames = headers.slice(1);
+
+          if (!confirm('Import will replace all current habits and history. Continue?')) {
+            return;
+          }
+
+          const mutedColors = ['#94a3b8', '#7dd3fc', '#a78bfa', '#f472b6', '#fb923c', '#34d399', '#fbbf24'];
+          const newHabits = habitNames.map((name, idx) => ({
+            id: Date.now() + idx,
+            name: name,
+            color: mutedColors[idx % mutedColors.length],
+            archived: false
+          }));
+
+          const newHistory = {};
+          for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split(',').map(p => p.trim());
+            if (parts.length < 2) continue;
+
+            const date = parts[0];
+            newHistory[date] = {};
+
+            for (let j = 1; j < parts.length && j <= newHabits.length; j++) {
+              const habitId = newHabits[j - 1].id;
+              newHistory[date][habitId] = parts[j] === '1';
+            }
+          }
+
+          habits = newHabits;
+          history = newHistory;
+          save();
+          render();
+          alert('Import successful!');
+        } catch (err) {
+          alert('Error importing CSV: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function handleDragStart(e, index) {
+      draggedElement = index;
+      e.target.classList.add('dragging');
+    }
+
+    function handleDragEnd(e) {
+      e.target.classList.remove('dragging');
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+    }
+
+    function handleDrop(e, dropIndex) {
+      e.preventDefault();
+      if (draggedElement === null || draggedElement === dropIndex) return;
+
+      const item = habits[draggedElement];
+      habits.splice(draggedElement, 1);
+      habits.splice(dropIndex, 0, item);
+      
+      draggedElement = null;
+      save();
+      render();
+    }
+
+    function render() {
+      renderHabitList();
+      renderChart();
+      renderHistory();
+    }
+
+    function renderHabitList() {
+      const today = getTodayDate();
+      const todayData = history[today] || {};
+      
+      const html = habits.map((h, index) => {
+        const streak = getStreak(h.id);
+        return `
+        <div class="habit-item ${h.archived ? 'archived' : ''}" 
+          draggable="true" 
+          ondragstart="handleDragStart(event, ${index})"
+          ondragend="handleDragEnd(event)"
+          ondragover="handleDragOver(event)"
+          ondrop="handleDrop(event, ${index})">
+          <span class="drag-handle">⋮⋮</span>
+          ${!h.archived ? `<input 
+            type="checkbox" 
+            class="habit-checkbox"
+            ${todayData[h.id] ? 'checked' : ''}
+            onchange="toggleHabit(${h.id})"
+          >` : '<span style="width: 1.35rem;"></span>'}
+          ${editingId === h.id 
+            ? `<input 
+                id="edit-${h.id}" 
+                class="habit-input" 
+                value="${h.name}"
+                onkeydown="if(event.key==='Enter') finishEdit(${h.id})"
+              >`
+            : `<span class="habit-name">${h.name}</span>`
+          }
+          ${h.archived ? '<span class="archived-indicator">ARCHIVED</span>' : (streak >= 3 ? `<span class="streak-badge">🔥 ${streak}</span>` : '')}
+          <input 
+            type="color" 
+            class="color-picker" 
+            value="${h.color}"
+            onchange="updateColor(${h.id}, this.value)"
+          >
+          ${editingId === h.id
+            ? `<button class="icon-btn" onclick="finishEdit(${h.id})">✓</button>`
+            : `<button class="icon-btn" onclick="startEdit(${h.id}, '${h.name.replace(/'/g, "\\'")}')">✎</button>`
+          }
+          <button class="icon-btn archive-btn" onclick="toggleArchive(${h.id})" title="${h.archived ? 'Unarchive' : 'Archive'}">${h.archived ? '📂' : '📁'}</button>
+          <button class="icon-btn delete-btn" onclick="removeHabit(${h.id})">🗑</button>
+        </div>
+      `;
+      }).join('');
+
+      document.getElementById('habitList').innerHTML = html || '<p style="text-align: center; opacity: 0.6;">No habits yet. Add one below!</p>';
+    }
+
+    function renderHistory() {
+      // Get all dates from history
+      const allDates = Object.keys(history).sort().reverse(); // Most recent first
+
+      if (allDates.length === 0) {
+        document.getElementById('historyList').innerHTML = '<p style="text-align: center; opacity: 0.6;">No history yet. Click "Add Date" to start tracking!</p>';
+        return;
+      }
+
+      // Group dates by month
+      const monthGroups = {};
+      allDates.forEach(date => {
+        const dateObj = new Date(date + 'T00:00:00');
+        const monthKey = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+        if (!monthGroups[monthKey]) {
+          monthGroups[monthKey] = [];
+        }
+        monthGroups[monthKey].push(date);
+      });
+
+      const html = Object.keys(monthGroups).map((monthKey, monthIndex) => {
+        const monthDates = monthGroups[monthKey];
+        const currentMonthKey = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+        const isCurrentMonth = monthKey === currentMonthKey;
+        
+        const datesHtml = monthDates.map(date => {
+          const dateObj = new Date(date + 'T00:00:00');
+          const today = getTodayDate();
+          const isToday = date === today;
+          const label = isToday ? 'Today' : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          
+          const dayData = history[date] || {};
+          
+          const habitsHtml = habits.map(h => `
+            <div class="date-habit-check">
+              <input 
+                type="checkbox" 
+                ${dayData[h.id] ? 'checked' : ''}
+                onchange="toggleHabit(${h.id}, '${date}')"
+                style="accent-color: ${h.color}"
+              >
+              <span style="color: ${h.color}; opacity: ${h.archived ? '0.5' : '1'}">${h.name}</span>
+            </div>
+          `).join('');
+
+          return `
+            <div class="date-row">
+              <div class="date-label">
+                ${label}
+                <button class="delete-date-btn" onclick="deleteDate('${date}')" title="Delete this date">🗑</button>
+              </div>
+              <div class="date-habits">
+                ${habitsHtml || '<span style="opacity: 0.5;">No habits tracked</span>'}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="month-group">
+            <div class="month-header" onclick="toggleMonth(this)">
+              <span class="month-title">${monthKey}</span>
+              <span class="month-toggle ${isCurrentMonth ? '' : 'collapsed'}">▼</span>
+            </div>
+            <div class="month-content ${isCurrentMonth ? '' : 'collapsed'}">
+              ${datesHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('historyList').innerHTML = html;
+    }
+
+    function toggleMonth(headerElement) {
+      const toggle = headerElement.querySelector('.month-toggle');
+      const content = headerElement.nextElementSibling;
+      
+      toggle.classList.toggle('collapsed');
+      content.classList.toggle('collapsed');
+    }
+
+    function deleteDate(date) {
+      if (!confirm(`Delete all data for ${date}?`)) return;
+      
+      delete history[date];
+      save();
+      render();
+    }
+
+    function renderChart() {
+      const activeHabits = habits.filter(h => !h.archived);
+      
+      if (activeHabits.length === 0) {
+        document.getElementById('chartCard').style.display = 'none';
+        return;
+      }
+      
+      document.getElementById('chartCard').style.display = 'block';
+
+      const stats = getOverallStats();
+      document.getElementById('statsDisplay').innerHTML = `
+        <span>${stats.percentage}%</span> (${stats.completed}/${stats.total}) habits completed
+      `;
+
+      const data = activeHabits.map(h => {
+        const result = getCompletionRate(h.id);
+        return {
+          label: h.name,
+          value: result.percentage,
+          completed: result.completed,
+          total: result.total,
+          color: h.color
+        };
+      });
+
+      const ctx = document.getElementById('chartCanvas').getContext('2d');
+      
+      if (chart) {
+        chart.destroy();
+      }
+
+      let maxValue = 100;
+      let stepSize = 20;
+      let usePercentage = true;
+      
+      if (timeWindow === 7) {
+        maxValue = 7;
+        stepSize = 1;
+        usePercentage = false;
+        data.forEach(d => {
+          d.value = d.completed;
+        });
+      } else if (timeWindow === 21) {
+        maxValue = 21;
+        stepSize = 3;
+        usePercentage = false;
+        data.forEach(d => {
+          d.value = d.completed;
+        });
+      } else if (timeWindow === 'all') {
+        // All time uses percentage
+        maxValue = 100;
+        stepSize = 20;
+        usePercentage = true;
+      }
+
+      chart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: data.map(d => d.label),
+          datasets: [{
+            label: usePercentage ? 'Completion %' : 'Days Completed',
+            data: data.map(d => d.value),
+            backgroundColor: data.map(d => d.color + '60'),
+            borderColor: data.map(d => d.color),
+            borderWidth: 2.5,
+            pointBackgroundColor: data.map(d => d.color),
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: data.map(d => d.color),
+            pointRadius: 5,
+            pointHoverRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            r: {
+              min: 0,
+              max: maxValue,
+              ticks: {
+                stepSize: stepSize,
+                color: '#94a3b8',
+                backdropColor: 'transparent',
+                font: {
+                  size: 11
+                },
+                callback: function(value) {
+                  if (usePercentage) {
+                    return value + '%';
+                  }
+                  return value;
+                }
+              },
+              grid: {
+                color: 'rgba(71, 85, 105, 0.3)',
+                circular: true
+              },
+              angleLines: {
+                color: 'rgba(71, 85, 105, 0.3)'
+              },
+              pointLabels: {
+                color: '#cbd5e1',
+                font: {
+                  size: 12,
+                  weight: '500'
+                }
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              backdropFilter: 'blur(8px)',
+              titleColor: '#cbd5e1',
+              bodyColor: '#e2e8f0',
+              borderColor: 'rgba(148, 163, 184, 0.2)',
+              borderWidth: 1,
+              padding: 12,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  const dataPoint = data[context.dataIndex];
+                  if (usePercentage) {
+                    return dataPoint.completed + '/' + dataPoint.total + ' (' + dataPoint.value + '%)';
+                  }
+                  return dataPoint.completed + '/' + dataPoint.total + ' days (' + Math.round((dataPoint.completed/dataPoint.total)*100) + '%)';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>
