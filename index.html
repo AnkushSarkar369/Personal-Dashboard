@@ -29,27 +29,19 @@
 </header>
 
 <section class="view active" id="view-overview">
-  <div class="overview-grid">
-    <article class="panel radar-panel">
-      <div class="panel-heading"><div><div class="eyebrow">CHARACTER PROFILE</div><h2>Life dimensions</h2></div><div class="segmented" data-period-control><button class="selected" data-period="1m">1M</button><button data-period="3m">3M</button><button data-period="all">ALL</button></div></div>
-      <div class="radar-stage"><svg id="radar" viewBox="0 0 600 440" role="img" aria-label="Dimension progression radar"></svg></div>
-      <div class="radar-caption"><span><i></i> Progression</span><span id="radarCaption">Normalised against each dimension benchmark</span></div>
-    </article>
-    <article class="panel attributes-panel">
-      <div class="panel-heading"><div><div class="eyebrow">CURRENT PROGRESSION</div><h2>Attributes</h2></div><button class="quiet-button" data-go="stats">Details ↗</button></div>
-      <div id="attributeList" class="attribute-list"></div>
-      <button class="text-action" data-go="library">Manage dimensions ↗</button>
-    </article>
+  <div class="character-screen">
+    <div class="character-topline"><span class="eyebrow">YOUR CHARACTER · LIVE PROGRESSION</span><div class="segmented" data-period-control><button class="selected" data-period="1m">1M</button><button data-period="3m">3M</button><button data-period="all">ALL TIME</button></div></div>
+    <div class="radar-stage"><svg id="radar" viewBox="0 0 900 660" role="img" aria-label="Living character progression radar"></svg></div>
+    <div class="character-foot"><span id="radarCaption">Each dimension grows on its own scale</span><span id="characterTotal"></span></div>
   </div>
-  <div class="section-heading"><div><div class="eyebrow">TODAY</div><h2>Active habits</h2></div><button class="quiet-button" data-go="tracker">Open tracker ↗</button></div>
-  <div id="overviewHabits" class="overview-habits"></div>
 </section>
 
 <section class="view" id="view-tracker">
-  <div class="section-heading tracker-heading"><div><div class="eyebrow">DAILY CHECK-IN</div><h2 id="trackerHeading">Today, in progress.</h2><p class="muted">Tap a habit to cycle through its three states. The effort decision is yours.</p></div><input class="date-input" type="date" id="trackerDate"></div>
-  <div class="panel tracker-summary"><div><div class="eyebrow">POINTS EARNED</div><strong id="todayPoints">0</strong><span class="muted">across active dimensions</span></div><div class="summary-progress"><span id="todayCount">0 / 0 actioned</span><div class="progress-track"><i id="todayProgress"></i></div></div></div>
-  <div id="trackerList" class="tracker-list"></div>
-  <div class="state-legend"><span><i class="state-dot completed"></i>Completed</span><span><i class="state-dot mva"></i>Minimum viable action</span><span><i class="state-dot missed"></i>Not completed</span></div>
+  <div class="daily-screen">
+    <header class="daily-header"><div><div class="eyebrow">DAILY CHECK-IN</div><h2 id="liveDate">Today</h2></div><div class="live-clock" id="liveClock">00:00:00</div></header>
+    <div id="trackerList" class="tracker-list"></div>
+    <div class="daily-empty" id="trackerEmpty" hidden>No active habits. Configure your habits in the library.</div>
+  </div>
 </section>
 
 <section class="view" id="view-library">
