@@ -1,27 +1,25 @@
 # Habit Radar
 
-A focused, portable habit tracker in one self-contained HTML file. No framework, package manager, build step, localhost server, AppImage, external assets or account.
+A focused, portable habit tracker built with plain HTML, CSS and JavaScript. No framework, build process, localhost server, AppImage, account or external assets.
 
 ## Run
 
-Open `index.html` directly in a browser. The styles and application logic are embedded in the HTML, so it also works when opened through Android file managers that provide a `content://` URL and cannot expose neighbouring files.
+Open `index.html` in a modern browser. Keep `styles.css` and `app.js` beside it. Core tracking works on desktop and mobile browsers; layout adapts to narrow screens.
 
-The app automatically saves to browser local storage where the browser permits it. For a portable file backup, use Settings & data → Export JSON. Import JSON restores the full state.
+The app starts with editable sample dimensions, pools and habits so the interface is populated immediately. Use Settings & data → Export JSON for backups and Import JSON to restore them. Browser storage is used automatically where available. Optional folder saving uses the File System Access API in compatible desktop browsers; it is not required.
 
-On desktop Chromium browsers that support the File System Access API, Settings & data → Choose data folder can additionally save `habit-radar.json` into a selected folder. This is optional; the application does not require it.
+## Included
 
-## Product model
+- Editable dimensions, pools, habits and multi-dimension point allocations.
+- Central Habit Configuration panel; no scattered edit dialogs.
+- Completed, MVA and Not completed daily states.
+- Global MVA multiplier; historical records preserve the multiplier and point values from the day.
+- Independent dimension ledgers, 1M / 3M / cumulative statistics and radar chart.
+- Archive and restore habits without deleting historical activity.
+- Sample data can be edited, archived or deleted.
 
-- Editable dimensions, pools, habits, point allocations and active configuration.
-- Habits can contribute to multiple dimensions.
-- Completed earns 100%; MVA earns the global multiplier (default 0.25×); Not completed earns zero.
-- Daily states cycle by clicking.
-- Each dimension has an independent point ledger and benchmark (default 1,000).
-- 1-month, 3-month and cumulative views.
-- Historical records preserve snapshots, so later edits do not rewrite previous awards.
+## Files
 
-## File
-
-- `index.html` — complete application: HTML, CSS and JavaScript.
-
-No external libraries or network requests are required.
+- `index.html` — structure
+- `styles.css` — visual system and responsive layout
+- `app.js` — data model, tracking, rendering and persistence
