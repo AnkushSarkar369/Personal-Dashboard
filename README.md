@@ -1,31 +1,27 @@
 # Habit Radar
 
-A focused, portable habit tracker built with plain HTML, CSS and JavaScript. No framework, package manager, build step, localhost server, AppImage or account.
+A focused, portable habit tracker in one self-contained HTML file. No framework, package manager, build step, localhost server, AppImage, external assets or account.
 
 ## Run
 
-Double-click index.html (or open it in a modern browser).
+Open `index.html` directly in a browser. The styles and application logic are embedded in the HTML, so it also works when opened through Android file managers that provide a `content://` URL and cannot expose neighbouring files.
 
-For automatic folder-based persistence, use a Chromium-based browser and open Settings & data → Choose data folder. Select a folder inside or beside the application directory. Habit Radar writes habit-radar.json directly into that folder.
+The app automatically saves to browser local storage where the browser permits it. For a portable file backup, use Settings & data → Export JSON. Import JSON restores the full state.
 
-Move the selected data folder with the application. On another computer, open the app and reconnect the folder once. Browsers restrict silent file writes, so explicit folder permission is required.
-
-If the browser does not support the File System Access API, use Export JSON and Import JSON. This is a complete backup.
+On desktop Chromium browsers that support the File System Access API, Settings & data → Choose data folder can additionally save `habit-radar.json` into a selected folder. This is optional; the application does not require it.
 
 ## Product model
 
-- Everything is editable: dimensions, pools, habits, point allocations and active configuration.
+- Editable dimensions, pools, habits, point allocations and active configuration.
 - Habits can contribute to multiple dimensions.
 - Completed earns 100%; MVA earns the global multiplier (default 0.25×); Not completed earns zero.
 - Daily states cycle by clicking.
 - Each dimension has an independent point ledger and benchmark (default 1,000).
-- 1-month, 3-month and cumulative views are available.
+- 1-month, 3-month and cumulative views.
 - Historical records preserve snapshots, so later edits do not rewrite previous awards.
 
-## Files
+## File
 
-- index.html — application structure
-- styles.css — visual design
-- app.js — application logic and persistence
+- `index.html` — complete application: HTML, CSS and JavaScript.
 
 No external libraries or network requests are required.
