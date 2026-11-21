@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.source/habit-radar-v2-source.tar.gz'
+      - '.source/habit-radar-v2-source.tar.xz'
       - '.github/workflows/build-portable.yml'
   workflow_dispatch:
 
