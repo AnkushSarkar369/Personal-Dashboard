@@ -1,0 +1,84 @@
+name: Build portable Linux app
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.source/habit-radar-v2-source.tar.gz'
+      - '.github/workflows/build-portable.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build AppImage and portable folder
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            build-essential curl wget file patchelf \
+            libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Extract application source
+        run: mkdir -p extracted && tar -xzf .source/habit-radar-v2-source.tar.gz -C extracted
+
+      - name: Test and build AppImage
+        working-directory: extracted/habit-radar-v2
+        run: |
+          npm install
+          npm test
+          npm run tauri -- build --bundles appimage
+
+      - name: Assemble portable folder
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPIMAGE="$(find extracted/habit-radar-v2/src-tauri/target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+          test -n "$APPIMAGE"
+          mkdir -p portable/Habit-Radar-Linux/data/backups
+          cp "$APPIMAGE" portable/Habit-Radar-Linux/Habit-Radar.AppImage
+          chmod +x portable/Habit-Radar-Linux/Habit-Radar.AppImage
+          cat > portable/Habit-Radar-Linux/Launch.sh <<'LAUNCHER'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+          exec "$HERE/Habit-Radar.AppImage" "$@"
+          LAUNCHER
+          chmod +x portable/Habit-Radar-Linux/Launch.sh
+          cat > portable/Habit-Radar-Linux/README.txt <<'PORTABLE_README'
+          HABIT RADAR — PORTABLE LINUX BUILD
+
+          1. Extract this entire folder to a writable location, such as your home directory.
+          2. Double-click Habit-Radar.AppImage to launch. Launch.sh is an alternative launcher.
+          3. Your records are stored in data/habit-radar.json beside the AppImage.
+          4. A rolling recovery copy is stored in data/backups/previous-state.json.
+
+          Move the complete folder to move the application and your records together.
+          Do not move only the AppImage if you want to preserve portability.
+          PORTABLE_README
+          tar -czf Habit-Radar-Linux-Portable.tar.gz -C portable Habit-Radar-Linux
+
+      - name: Upload portable application
+        uses: actions/upload-artifact@v4
+        with:
+          name: Habit-Radar-Linux-Portable
+          path: Habit-Radar-Linux-Portable.tar.gz
+          if-no-files-found: error
+          retention-days: 30
