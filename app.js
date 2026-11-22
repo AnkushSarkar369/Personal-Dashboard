@@ -30,7 +30,7 @@ function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function titleCase(s){
  const acronyms={mva:"MVA",json:"JSON",api:"API",url:"URL",csv:"CSV",html:"HTML",css:"CSS",svg:"SVG",id:"ID",am:"AM",pm:"PM",ist:"IST"};
  return String(s??"").replace(/[A-Za-z]+(?:'[A-Za-z]+)?/g,(word,offset,full)=>{
-  if(offset>0&&/\\d/.test(full[offset-1]))return word;
+  if(offset>0&&/\d/.test(full[offset-1]))return word;
   const lower=word.toLowerCase();
   return acronyms[lower]||(lower.length===1?lower.toUpperCase():lower[0].toUpperCase()+lower.slice(1));
  });
@@ -45,7 +45,7 @@ function applyTitleCase(){
 }
 function ordinalDay(day){const n=Number(day),lastTwo=n%100;if(lastTwo>=11&&lastTwo<=13)return n+"th";return n+(n%10===1?"st":n%10===2?"nd":n%10===3?"rd":"th")}
 function formatOrdinalDate(date){const parts=Object.fromEntries(new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",weekday:"long",month:"long",day:"numeric",year:"numeric"}).formatToParts(date).map(x=>[x.type,x.value]));return parts.weekday+", "+parts.month+" "+ordinalDay(parts.day)+", "+parts.year}
-function formatIstTime(date){return date.toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true}).replace(/\\b(am|pm)\\b/i,x=>x.toUpperCase())+" IST"}
+function formatIstTime(date){return date.toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true}).replace(/\b(am|pm)\b/i,x=>x.toUpperCase())+" IST"}
 function fmt(n){return (Math.round((Number(n)||0)*100)/100).toLocaleString(undefined,{maximumFractionDigits:2})}
 function toast(s){const e=$("#toast");e.textContent=titleCase(s);e.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>e.classList.remove("show"),2300)}
 function save(){try{localStorage.setItem("habit-radar-state",JSON.stringify(data));$("#storageDot").classList.add("saved");$("#storageText").textContent="Saved In This Browser"}catch(e){$("#storageText").textContent="Export Backup To Save";console.warn(e)}clearTimeout(saveTimer);saveTimer=setTimeout(saveFolder,250);render()}
