@@ -28,8 +28,9 @@ if(!selectedPool)selectedPool=data.pools.find(p=>!p.archived)?.id||null;
 function D(id){return data.dimensions.find(x=>x.id===id)}function P(id){return data.pools.find(x=>x.id===id)}function H(id){return data.habits.find(x=>x.id===id)}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function titleCase(s){
- const acronyms={mva:"MVA",json:"JSON",api:"API",url:"URL",csv:"CSV",html:"HTML",css:"CSS",svg:"SVG",id:"ID"};
- return String(s??"").replace(/[A-Za-z]+(?:'[A-Za-z]+)?/g,word=>{
+ const acronyms={mva:"MVA",json:"JSON",api:"API",url:"URL",csv:"CSV",html:"HTML",css:"CSS",svg:"SVG",id:"ID",am:"AM",pm:"PM",ist:"IST"};
+ return String(s??"").replace(/[A-Za-z]+(?:'[A-Za-z]+)?/g,(word,offset,full)=>{
+  if(offset>0&&/\\d/.test(full[offset-1]))return word;
   const lower=word.toLowerCase();
   return acronyms[lower]||(lower.length===1?lower.toUpperCase():lower[0].toUpperCase()+lower.slice(1));
  });
@@ -55,7 +56,7 @@ function cycle(id,date,status){const h=H(id);if(!h)return;const rec=data.records
 function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:00"),start=new Date(now);if(range==="1m")start.setDate(start.getDate()-29);if(range==="3m")start.setDate(start.getDate()-89);Object.entries(data.records).forEach(([date,rec])=>{const dt=new Date(date+"T12:00:00");if(range!=="all"&&(dt<start||dt>now))return;Object.values(rec.items||{}).forEach(it=>{const s=it.snapshot;if(!s)return;const mult=it.status==="completed"?1:it.status==="mva"?s.mva:0;s.points.forEach(x=>{if(x.dimensionId===dimId)total+=x.points*mult})})});return total}
 function percent(d,range){const ds=data.dimensions.filter(x=>!x.archived),max=Math.max(25,...ds.map(x=>rawPoints(x.id,range)));return Math.min(100,rawPoints(d.id,range)/(max*1.18)*100)}
 function switchView(v){view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
-function render(){const statHabit=H(selectedStatsHabit);const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Habit Statistics",statHabit?titleCase(statHabit.name):"Habit Statistics"],library:["Your System","Habit Library"],stats:["The Long View","Statistics"],settings:["Preferences","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderOverview();renderTracker();renderHabitStats();renderLibrary();renderStats();renderSettings();applyTitleCase()}
+function render(){const statHabit=H(selectedStatsHabit);const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["Your System","Habit Library"],stats:["The Long View","Statistics"],settings:["Preferences","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderOverview();renderTracker();renderHabitStats();renderLibrary();renderStats();renderSettings();applyTitleCase()}
 function renderOverview(){const ds=data.dimensions.filter(d=>!d.archived);drawRadar(ds,period);}
 function drawRadar(ds,range){
  const svg=$("#radar"),cx=500,cy=380,r=230,n=ds.length;
@@ -96,7 +97,7 @@ function renderTracker(){
  $("#trackerList").innerHTML=hs.map(h=>{
   const it=rec?.items[h.id],status=it?.status||"";
   return '<div class="daily-habit '+(status==="completed"?"is-completed":"")+'" data-open-habit="'+h.id+'" data-drag-habit="'+h.id+'" tabindex="0" role="link" aria-label="Open '+esc(titleCase(h.name))+' Statistics. Drag To Reorder.">'+
-   '<span class="daily-grip" draggable="true" title="Drag To Reorder" aria-hidden="true">⠿</span>'+
+   '<span class="daily-grip" draggable="true" title="Drag To Reorder" aria-label="Drag To Reorder">⠿</span>'+
    '<span class="daily-habit-name">'+esc(titleCase(h.name))+'</span>'+
    '<div class="status-dots" role="group" aria-label="'+esc(titleCase(h.name))+' Status">'+
     '<button class="status-dot completed '+(status==="completed"?"chosen":"")+'" data-set-status="completed" data-habit="'+h.id+'" aria-label="Completed" title="Completed"></button>'+
@@ -161,5 +162,5 @@ document.addEventListener("dragend",()=>{draggedHabitId=null;$(".daily-habit").f
 document.addEventListener("keydown",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||e.target.closest("button"))return;if(e.key==="Enter"){e.preventDefault();openHabitStats(row.dataset.openHabit);return}if(!e.altKey||!["ArrowUp","ArrowDown"].includes(e.key))return;e.preventDefault();const list=activeHabits(),i=list.findIndex(h=>h.id===row.dataset.dragHabit),next=i+(e.key==="ArrowUp"?-1:1);if(next>=0&&next<list.length)reorderHabits(row.dataset.dragHabit,list[next].id)});
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();dataFolder?saveFolder():exportData()}});
 render();
-let lastDay=today();setInterval(()=>{if(view==="tracker"){const now=new Date(),day=today();$("#liveClock").textContent=now.toLocaleTimeString(undefined,{hour12:false});if(day!==lastDay){lastDay=day;renderTracker()}}},1000);
+let lastDay=today();setInterval(()=>{if(view==="tracker"){const now=new Date(),day=today();$("#liveClock").textContent=formatIstTime(now);if(day!==lastDay){lastDay=day;renderTracker()}}},1000);
 })();
