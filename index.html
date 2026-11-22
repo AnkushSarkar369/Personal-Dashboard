@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b0d12"><title>Habit Radar</title>
-<link rel="stylesheet" href="styles.css?v=20261122-3">
+<link rel="stylesheet" href="styles.css?v=20261122-4">
 </head>
 <body>
 <div class="app">
 <aside class="sidebar">
+  <button class="sidebar-close" id="sidebarClose" type="button" aria-label="Close sidebar" title="Close Sidebar">‹</button>
   <a class="brand" href="#"><span class="brand-icon">◈</span><span>Habit<span class="brand-muted"> Radar</span></span></a>
-  <div class="nav-label">Workspace</div>
+  
   <nav class="navigation">
     <button class="nav-item active" data-view="overview"><span>◉</span>Overview</button>
     <button class="nav-item" data-view="tracker"><span>☷</span>Daily Tracker</button>
@@ -21,6 +22,7 @@
     <button class="nav-item" data-view="settings"><span>⚙</span>Settings & Data</button>
   </div>
 </aside>
+<button class="sidebar-reopen" id="sidebarReopen" type="button" aria-label="Open sidebar" title="Open Sidebar">›</button>
 <main class="main">
 <header class="topbar">
   <div><div class="eyebrow" id="pageEyebrow">Your Character</div><h1 id="pageTitle">Overview</h1></div>
@@ -56,7 +58,7 @@
 
 <section class="view" id="view-library">
   <div class="section-heading library-heading">
-    <div><div class="eyebrow">Your System</div><h2>Habit Library</h2><p class="muted">Your habits, organised by dimension. Lock a habit when it leaves your current season.</p></div>
+    <div><h2>Habit Library</h2></div>
     <button class="primary-button" id="addHabit">＋ Add Habit</button>
   </div>
   <div id="dimensionCards" class="dimension-grid"></div>
@@ -80,5 +82,5 @@
 </main></div>
 <div class="library-modal" id="libraryModal" hidden></div>
 <div class="toast" id="toast" role="status"></div>
-<script src="app.js?v=20261122-3"></script>
+<script src="app.js?v=20261122-4"></script>
 </body></html>
