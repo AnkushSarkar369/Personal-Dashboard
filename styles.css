@@ -348,3 +348,19 @@
 /* Dimension identity is carried into every dimension-level summary. */
 .dimension-table-label{display:inline-flex;align-items:center;gap:8px;color:#d9deea}
 .dimension-table-label i{width:7px;height:7px;flex:none;border-radius:50%;background:var(--dimension-accent);box-shadow:0 0 9px color-mix(in srgb,var(--dimension-accent) 55%,transparent)}
+
+/* Compatibility fallbacks: keep the library legible even without color-mix(). */
+.dimension-card{
+ border-color:rgba(86,99,121,.55);
+ background:radial-gradient(ellipse at 8% 0%,rgba(110,130,165,.10),transparent 54%),linear-gradient(145deg,#151b26 0%,#111720 72%);
+}
+.dimension-color-mark{box-shadow:0 0 10px rgba(190,200,220,.28)}
+.dimension-total{border-color:rgba(130,145,170,.30)}
+.dimension-edit:hover{border-color:rgba(150,160,190,.35);background:rgba(150,160,190,.09)}
+.library-habit-row{border-left-color:var(--habit-accent)}
+.library-habit-row:hover{border-color:rgba(150,160,190,.25);border-left-color:var(--habit-accent);background:rgba(255,255,255,.045);box-shadow:0 3px 15px rgba(0,0,0,.16)}
+.library-habit-row:hover .library-habit-copy strong{color:var(--habit-accent);text-shadow:0 0 12px rgba(180,190,210,.22)}
+.library-lock:hover{border-color:rgba(150,160,190,.34);background:rgba(150,160,190,.09);color:var(--habit-accent);box-shadow:0 0 12px rgba(150,160,190,.12)}
+.daily-habit:hover:not(.dragging){border-left-color:var(--habit-accent);background:rgba(255,255,255,.045);box-shadow:0 8px 24px rgba(0,0,0,.16)}
+.daily-habit:hover:not(.dragging) .daily-habit-name{color:var(--habit-accent);text-shadow:0 0 12px rgba(180,190,210,.25)}
+.dimension-table-label i{box-shadow:0 0 8px rgba(190,200,220,.35)}
