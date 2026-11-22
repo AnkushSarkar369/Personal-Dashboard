@@ -166,3 +166,104 @@
 }
 
 
+
+
+/* Daily Tracker Refinement */
+.daily-screen{
+ max-width:850px;
+ margin:0 auto;
+ padding:22px 0 60px;
+}
+.daily-header{
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:center;
+ gap:9px;
+ padding:12px 8px 26px;
+ margin-bottom:12px;
+ text-align:center;
+ border-bottom:1px solid var(--line);
+}
+.daily-header h2{
+ margin:0;
+ font-size:clamp(25px,3.6vw,34px);
+ line-height:1.2;
+ font-weight:560;
+ letter-spacing:-.65px;
+}
+.live-clock{
+ font-size:clamp(15px,2vw,18px);
+ font-weight:450;
+ letter-spacing:.8px;
+ color:#aeb9cc;
+ font-variant-numeric:tabular-nums;
+ text-shadow:0 0 16px rgba(180,154,255,.16);
+}
+.daily-habit{
+ justify-content:flex-start;
+ gap:14px;
+ cursor:pointer;
+}
+.daily-habit-name{
+ position:relative;
+ display:inline-block;
+ flex:1 1 auto;
+ width:max-content;
+ max-width:100%;
+ transition:color .25s ease;
+}
+.daily-grip{
+ width:15px;
+ flex:none;
+ color:#7f8b9d;
+ font-size:16px;
+ line-height:1;
+ opacity:.34;
+ cursor:grab;
+ user-select:none;
+ text-align:center;
+ transition:opacity .18s ease,color .18s ease;
+}
+.daily-grip:active{cursor:grabbing}
+.daily-habit:hover .daily-grip{opacity:.8;color:#c1b2f1}
+.daily-habit.is-completed .daily-habit-name{color:#aab6b0}
+.daily-habit.is-completed .daily-habit-name:after{
+ content:"";
+ position:absolute;
+ left:0;
+ top:52%;
+ width:100%;
+ height:1.5px;
+ background:rgba(74,222,128,.9);
+ box-shadow:0 0 8px rgba(74,222,128,.34);
+ transform:scaleX(0);
+ transform-origin:left center;
+ animation:habit-cut .52s cubic-bezier(.18,.72,.2,1) forwards;
+ pointer-events:none;
+}
+@keyframes habit-cut{to{transform:scaleX(1)}}
+.daily-habit.dragging{opacity:.34}
+.daily-habit.drop-target{border-top:1px solid rgba(180,154,255,.58);background:rgba(180,154,255,.045)}
+.daily-habit:focus-visible{outline:1px solid var(--accent);outline-offset:2px}
+.habit-stats-screen{max-width:1000px;margin:0 auto;padding:8px 0 60px}
+.habit-stats-back{margin:8px 0 18px}
+.habit-stats-heading{align-items:center;margin-top:0}
+.habit-stats-heading .segmented{flex:none}
+#habitStatsCards{grid-template-columns:repeat(4,minmax(0,1fr))}
+.habit-activity-panel{margin-top:14px}
+@media(max-width:700px){
+ .daily-screen{padding:14px 0 35px}
+ .daily-header{gap:7px;padding:12px 5px 20px;margin-bottom:7px}
+ .daily-header h2{font-size:clamp(22px,6vw,29px)}
+ .live-clock{font-size:15px}
+ .daily-habit{min-height:61px;padding:10px 7px;gap:10px}
+ .daily-grip{width:13px;font-size:15px}
+ .daily-habit-name{font-size:14px}
+ .habit-stats-screen{padding:6px 0 35px}
+ .habit-stats-heading{flex-direction:column;align-items:stretch}
+ #habitStatsCards{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(prefers-reduced-motion:reduce){
+ .daily-habit.is-completed .daily-habit-name:after{animation:none;transform:scaleX(1)}
+}
