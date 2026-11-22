@@ -208,11 +208,12 @@
 .daily-habit-name{
  position:relative;
  display:inline-block;
- flex:1 1 auto;
+ flex:0 1 auto;
  width:max-content;
- max-width:100%;
+ max-width:calc(100% - 100px);
  transition:color .25s ease;
 }
+.daily-habit .status-dots{margin-left:auto;flex:none}
 .daily-grip{
  width:15px;
  flex:none;
