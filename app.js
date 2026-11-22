@@ -3,8 +3,8 @@
 const COLORS=["#4ade80","#a78bfa","#60a5fa","#f0abfc","#fbbf24","#fb923c","#5eead4","#fda4af"];
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const uid=()=> "hr-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
-const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
-let period="1m",view="overview",selectedDate=today(),selectedPool=null,selectedHabit=null,dataFolder=null,saveTimer=null;
+const today=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day};
+let period="1m",view="overview",selectedDate=today(),selectedPool=null,selectedHabit=null,selectedStatsHabit=null,dataFolder=null,saveTimer=null,draggedHabitId=null;
 function sampleData(){
  const dims=[["health","Health",COLORS[0]],["academics","Academics",COLORS[1]],["relationships","Relationships",COLORS[2]],["looks","Looksmaxxing",COLORS[3]]].map(([id,name,color])=>({id:"d-"+id,name,color,benchmark:1000,archived:false}));
  const pools=[
@@ -42,6 +42,9 @@ function applyTitleCase(){
   ["title","aria-label","placeholder"].forEach(attr=>{if(el.hasAttribute(attr))el.setAttribute(attr,titleCase(el.getAttribute(attr)))});
  });
 }
+function ordinalDay(day){const n=Number(day),lastTwo=n%100;if(lastTwo>=11&&lastTwo<=13)return n+"th";return n+(n%10===1?"st":n%10===2?"nd":n%10===3?"rd":"th")}
+function formatOrdinalDate(date){const parts=Object.fromEntries(new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",weekday:"long",month:"long",day:"numeric",year:"numeric"}).formatToParts(date).map(x=>[x.type,x.value]));return parts.weekday+", "+parts.month+" "+ordinalDay(parts.day)+", "+parts.year}
+function formatIstTime(date){return date.toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true}).replace(/\\b(am|pm)\\b/i,x=>x.toUpperCase())+" IST"}
 function fmt(n){return (Math.round((Number(n)||0)*100)/100).toLocaleString(undefined,{maximumFractionDigits:2})}
 function toast(s){const e=$("#toast");e.textContent=titleCase(s);e.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>e.classList.remove("show"),2300)}
 function save(){try{localStorage.setItem("habit-radar-state",JSON.stringify(data));$("#storageDot").classList.add("saved");$("#storageText").textContent="Saved In This Browser"}catch(e){$("#storageText").textContent="Export Backup To Save";console.warn(e)}clearTimeout(saveTimer);saveTimer=setTimeout(saveFolder,250);render()}
@@ -52,7 +55,7 @@ function cycle(id,date,status){const h=H(id);if(!h)return;const rec=data.records
 function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:00"),start=new Date(now);if(range==="1m")start.setDate(start.getDate()-29);if(range==="3m")start.setDate(start.getDate()-89);Object.entries(data.records).forEach(([date,rec])=>{const dt=new Date(date+"T12:00:00");if(range!=="all"&&(dt<start||dt>now))return;Object.values(rec.items||{}).forEach(it=>{const s=it.snapshot;if(!s)return;const mult=it.status==="completed"?1:it.status==="mva"?s.mva:0;s.points.forEach(x=>{if(x.dimensionId===dimId)total+=x.points*mult})})});return total}
 function percent(d,range){const ds=data.dimensions.filter(x=>!x.archived),max=Math.max(25,...ds.map(x=>rawPoints(x.id,range)));return Math.min(100,rawPoints(d.id,range)/(max*1.18)*100)}
 function switchView(v){view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
-function render(){const labels={overview:["Your Character","Overview"],tracker:["Daily Check-In","Daily Tracker"],library:["Your System","Habit Library"],stats:["The Long View","Statistics"],settings:["Preferences","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view));renderOverview();renderTracker();renderLibrary();renderStats();renderSettings();applyTitleCase()}
+function render(){const statHabit=H(selectedStatsHabit);const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Habit Statistics",statHabit?titleCase(statHabit.name):"Habit Statistics"],library:["Your System","Habit Library"],stats:["The Long View","Statistics"],settings:["Preferences","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderOverview();renderTracker();renderHabitStats();renderLibrary();renderStats();renderSettings();applyTitleCase()}
 function renderOverview(){const ds=data.dimensions.filter(d=>!d.archived);drawRadar(ds,period);}
 function drawRadar(ds,range){
  const svg=$("#radar"),cx=500,cy=380,r=230,n=ds.length;
@@ -87,10 +90,51 @@ function drawRadar(ds,range){
 }
 function renderTracker(){
  const hs=activeHabits(),rec=data.records[today()],now=new Date();
- $("#liveDate").textContent=titleCase(now.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"}));
- $("#liveClock").textContent=now.toLocaleTimeString(undefined,{hour12:false});
+ $("#liveDate").textContent=formatOrdinalDate(now);
+ $("#liveClock").textContent=formatIstTime(now);
  $("#trackerEmpty").hidden=hs.length>0;
- $("#trackerList").innerHTML=hs.map(h=>{const it=rec?.items[h.id],status=it?.status==="completed"?"completed":it?.status==="mva"?"mva":"missed";return '<div class="daily-habit"><span class="daily-habit-name">'+esc(titleCase(h.name))+'</span><div class="status-dots" role="group" aria-label="'+esc(titleCase(h.name))+' Status"><button class="status-dot completed '+(status==="completed"?"chosen":"")+'" data-set-status="completed" data-habit="'+h.id+'" aria-label="Completed" title="Completed"></button><button class="status-dot mva '+(status==="mva"?"chosen":"")+'" data-set-status="mva" data-habit="'+h.id+'" aria-label="Minimum Viable Action" title="Minimum Viable Action"></button><button class="status-dot missed '+(status==="missed"?"chosen":"")+'" data-set-status="missed" data-habit="'+h.id+'" aria-label="Not Completed" title="Not Completed"></button></div></div>'}).join("");
+ $("#trackerList").innerHTML=hs.map(h=>{
+  const it=rec?.items[h.id],status=it?.status||"";
+  return '<div class="daily-habit '+(status==="completed"?"is-completed":"")+'" data-open-habit="'+h.id+'" data-drag-habit="'+h.id+'" draggable="true" tabindex="0" role="link" aria-label="Open '+esc(titleCase(h.name))+' Statistics. Drag To Reorder.">'+
+   '<span class="daily-grip" title="Drag To Reorder" aria-hidden="true">⠿</span>'+
+   '<span class="daily-habit-name">'+esc(titleCase(h.name))+'</span>'+
+   '<div class="status-dots" role="group" aria-label="'+esc(titleCase(h.name))+' Status">'+
+    '<button class="status-dot completed '+(status==="completed"?"chosen":"")+'" data-set-status="completed" data-habit="'+h.id+'" aria-label="Completed" title="Completed"></button>'+
+    '<button class="status-dot mva '+(status==="mva"?"chosen":"")+'" data-set-status="mva" data-habit="'+h.id+'" aria-label="Minimum Viable Action" title="Minimum Viable Action"></button>'+
+    '<button class="status-dot missed '+(status==="missed"?"chosen":"")+'" data-set-status="missed" data-habit="'+h.id+'" aria-label="Not Completed" title="Not Completed"></button>'+
+   '</div></div>';
+ }).join("");
+}
+function openHabitStats(id){if(!H(id))return;selectedStatsHabit=id;view="habit-stats";render();window.scrollTo({top:0,behavior:"smooth"})}
+function reorderHabits(fromId,toId){
+ if(!fromId||!toId||fromId===toId)return;
+ const ordered=activeHabits(),from=ordered.findIndex(h=>h.id===fromId),to=ordered.findIndex(h=>h.id===toId);
+ if(from<0||to<0)return;
+ const [moved]=ordered.splice(from,1);ordered.splice(to,0,moved);
+ const activeIds=new Set(ordered.map(h=>h.id));let index=0;
+ data.habits=data.habits.map(h=>activeIds.has(h.id)?ordered[index++]:h);
+ save();toast("Habit Order Updated.");
+}
+function renderHabitStats(){
+ const h=H(selectedStatsHabit);
+ if(!h){$("#habitStatsName").textContent="Habit Statistics";$("#habitStatsDescription").textContent="Select A Habit From The Daily Tracker.";$("#habitStatsCards").innerHTML="";$("#habitStatsTable").innerHTML='<div class="empty-state">No Habit Selected.</div>';return}
+ $("#habitStatsName").textContent=titleCase(h.name);
+ $("#habitStatsDescription").textContent=(P(h.poolId)?.name?titleCase(P(h.poolId).name)+" · ":"")+"Individual Habit Progress";
+ const now=new Date(today()+"T12:00:00+05:30"),start=new Date(now);
+ if(period==="1m")start.setDate(start.getDate()-29);
+ if(period==="3m")start.setDate(start.getDate()-89);
+ const entries=Object.entries(data.records).map(([date,rec])=>({date,item:rec.items?.[h.id]})).filter(x=>x.item&&(period==="all"||(new Date(x.date+"T12:00:00+05:30")>=start&&new Date(x.date+"T12:00:00+05:30")<=now))).sort((a,b)=>a.date.localeCompare(b.date));
+ let earned=0,completed=0,mva=0,missed=0;
+ entries.forEach(({item})=>{earned+=pointsFor(item.snapshot,item.status);if(item.status==="completed")completed++;else if(item.status==="mva")mva++;else if(item.status==="missed")missed++});
+ $("#habitStatsCards").innerHTML=
+  '<div class="stat-card"><div class="eyebrow">Points Earned</div><strong>'+fmt(earned)+'</strong><span>'+(period==="all"?"All Recorded Activity":period==="1m"?"Last 30 Days":"Last 90 Days")+'</span></div>'+
+  '<div class="stat-card"><div class="eyebrow">Completed Days</div><strong>'+completed+'</strong><span>Full Completion</span></div>'+
+  '<div class="stat-card"><div class="eyebrow">MVA Days</div><strong>'+mva+'</strong><span>Minimum Viable Action</span></div>'+
+  '<div class="stat-card"><div class="eyebrow">Not Completed</div><strong>'+missed+'</strong><span>Recorded Misses</span></div>';
+ $("#habitStatsTable").innerHTML=entries.length?
+  '<table class="data-table"><thead><tr><th>Date</th><th>Status</th><th>Points</th></tr></thead><tbody>'+
+  entries.slice().reverse().map(({date,item})=>'<tr><td>'+formatOrdinalDate(new Date(date+"T12:00:00+05:30"))+'</td><td>'+titleCase(item.status==="mva"?"MVA":item.status)+'</td><td>'+fmt(pointsFor(item.snapshot,item.status))+'</td></tr>').join("")+
+  '</tbody></table>':'<div class="empty-state">No Activity Recorded In This Period.</div>';
 }
 function renderLibrary(){const ds=data.dimensions,pools=data.pools;if(!selectedPool||!P(selectedPool)||P(selectedPool).archived)selectedPool=pools[0]?.id||null;$("#dimensionManager").innerHTML=ds.map(d=>'<div class="manager-row"><button class="manager-item" data-edit-dimension="'+d.id+'"><i style="background:'+esc(d.color)+'"></i>'+esc(d.name)+(d.archived?" · Archived":"")+'</button><button class="manager-remove" title="'+(d.archived?"Restore Dimension":"Archive Dimension")+'" data-archive-dimension="'+d.id+'">'+(d.archived?"↶":"×")+'</button></div>').join("")||'<div class="muted">No dimensions</div>';
 $("#poolManager").innerHTML=pools.map(p=>'<div class="manager-row"><button class="manager-item '+(p.id===selectedPool?"selected":"")+'" data-select-pool="'+p.id+'"><i style="background:'+esc(p.color)+'"></i>'+esc(titleCase(p.name))+'<span class="manager-count">'+data.habits.filter(h=>h.poolId===p.id&&!h.archived).length+'</span></button><button class="manager-remove" title="Archive Pool" data-archive-pool="'+p.id+'">'+(p.archived?"↶":"×")+'</button></div>').join("")||'<div class="muted">No pools</div>';
@@ -108,8 +152,13 @@ function importData(file){const reader=new FileReader();reader.onload=()=>{try{d
 async function chooseFolder(){if(!window.showDirectoryPicker){toast("Folder Saving Is Not Supported Here. Use JSON Export/Import.");return}try{dataFolder=await window.showDirectoryPicker({mode:"readwrite"});await saveFolder();renderSettings();toast("Data Folder Connected.")}catch(e){if(e.name!=="AbortError")toast("Could Not Connect Folder.")}}
 async function saveFolder(){if(!dataFolder)return;try{const file=await dataFolder.getFileHandle("habit-radar.json",{create:true}),w=await file.createWritable();await w.write(JSON.stringify(data,null,2));await w.close()}catch(e){console.warn(e);toast("Folder Save Failed. Export A JSON Backup.")}}
 function restoreSample(){if(confirm("Replace The Current Workspace With The Original Sample Data? Export A Backup First If Needed.")){data=sampleData();selectedPool=data.pools[0].id;selectedHabit=null;save();toast("Sample Workspace Restored.")}}
-document.addEventListener("click",e=>{const nav=e.target.closest("[data-view]");if(nav){switchView(nav.dataset.view);return}const go=e.target.closest("[data-go]");if(go){switchView(go.dataset.go);return}const stateBtn=e.target.closest("[data-set-status]");if(stateBtn){cycle(stateBtn.dataset.habit,today(),stateBtn.dataset.setStatus);return}const p=e.target.closest("[data-select-pool]");if(p){selectedPool=p.dataset.selectPool;selectedHabit=null;renderLibrary();return}const h=e.target.closest("[data-select-habit]");if(h){selectedHabit=h.dataset.selectHabit;renderLibrary();return}const dim=e.target.closest("[data-edit-dimension]");if(dim){editDimension(dim.dataset.editDimension);return}const archiveDim=e.target.closest("[data-archive-dimension]");if(archiveDim){const d=D(archiveDim.dataset.archiveDimension);if(d){if(d.archived){d.archived=false;save();toast("Dimension Restored.")}else if(confirm("Archive "+titleCase(d.name)+"? Historical Records Remain Preserved.")){d.archived=true;data.habits.forEach(h=>{h.points=h.points.filter(x=>x.dimensionId!==d.id);if(!h.points.length)h.active=false});save();toast("Dimension Archived.")}}return}const archivePool=e.target.closest("[data-archive-pool]");if(archivePool){const p=P(archivePool.dataset.archivePool);if(p){if(p.archived){p.archived=false;save();toast("Pool Restored.")}else if(confirm("Archive "+titleCase(p.name)+"? Its Habits Will Be Disabled, Not Deleted.")){p.archived=true;data.habits.filter(h=>h.poolId===p.id).forEach(h=>h.active=false);if(selectedPool===p.id)selectedPool=data.pools.find(x=>!x.archived)?.id||null;save();toast("Pool Archived.")}}return}const periodBtn=e.target.closest("[data-period]");if(periodBtn){period=periodBtn.dataset.period;$$("[data-period]").forEach(b=>b.classList.toggle("selected",b.dataset.period===period));renderOverview();renderStats();return}});
+document.addEventListener("click",e=>{const back=e.target.closest("[data-back-tracker]");if(back){switchView("tracker");return}const stateBtn=e.target.closest("[data-set-status]");if(stateBtn){cycle(stateBtn.dataset.habit,today(),stateBtn.dataset.setStatus);return}const habitRow=e.target.closest("[data-open-habit]");if(habitRow&&!e.target.closest("button,.daily-grip")){openHabitStats(habitRow.dataset.openHabit);return}const nav=e.target.closest("[data-view]");if(nav){switchView(nav.dataset.view);return}const go=e.target.closest("[data-go]");if(go){switchView(go.dataset.go);return}const p=e.target.closest("[data-select-pool]");if(p){selectedPool=p.dataset.selectPool;selectedHabit=null;renderLibrary();return}const h=e.target.closest("[data-select-habit]");if(h){selectedHabit=h.dataset.selectHabit;renderLibrary();return}const dim=e.target.closest("[data-edit-dimension]");if(dim){editDimension(dim.dataset.editDimension);return}const archiveDim=e.target.closest("[data-archive-dimension]");if(archiveDim){const d=D(archiveDim.dataset.archiveDimension);if(d){if(d.archived){d.archived=false;save();toast("Dimension Restored.")}else if(confirm("Archive "+titleCase(d.name)+"? Historical Records Remain Preserved.")){d.archived=true;data.habits.forEach(h=>{h.points=h.points.filter(x=>x.dimensionId!==d.id);if(!h.points.length)h.active=false});save();toast("Dimension Archived.")}}return}const archivePool=e.target.closest("[data-archive-pool]");if(archivePool){const p=P(archivePool.dataset.archivePool);if(p){if(p.archived){p.archived=false;save();toast("Pool Restored.")}else if(confirm("Archive "+titleCase(p.name)+"? Its Habits Will Be Disabled, Not Deleted.")){p.archived=true;data.habits.filter(h=>h.poolId===p.id).forEach(h=>h.active=false);if(selectedPool===p.id)selectedPool=data.pools.find(x=>!x.archived)?.id||null;save();toast("Pool Archived.")}}return}const periodBtn=e.target.closest("[data-period]");if(periodBtn){period=periodBtn.dataset.period;$$("[data-period]").forEach(b=>b.classList.toggle("selected",b.dataset.period===period));renderOverview();renderStats();renderHabitStats();return}});
 $("#renamePool").onclick=()=>{const p=P(selectedPool);if(!p)return;const name=prompt("Rename Habit Pool",titleCase(p.name));if(name===null)return;if(!name.trim()){toast("Pool Name Cannot Be Empty.");return}p.name=name.trim();save()};$("#addDimension").onclick=addDimension;$("#addPool").onclick=addPool;$("#newHabit").onclick=newHabit;$("#quickAdd").onclick=newHabit;$("#mvaRange").oninput=e=>{$("#mvaValue").textContent=Number(e.target.value).toFixed(2)+"×"};$("#mvaRange").onchange=e=>{data.settings.mva=Number(e.target.value);save();toast("MVA Multiplier Updated For Future Activity.")};$("#defaultBenchmark").onchange=e=>{data.settings.defaultBenchmark=Math.max(1,Number(e.target.value)||1000);save()};$("#exportData").onclick=exportData;$("#importData").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value=""};$("#chooseFolder").onclick=chooseFolder;$("#saveNow").onclick=()=>dataFolder?saveFolder().then(()=>toast("Saved.")):exportData();$("#resetData").onclick=restoreSample;
+document.addEventListener("dragstart",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!e.target.closest(".daily-grip")){e.preventDefault();return}draggedHabitId=row.dataset.dragHabit;row.classList.add("dragging");if(e.dataTransfer){e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",draggedHabitId)}});
+document.addEventListener("dragover",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!draggedHabitId)return;e.preventDefault();$(".daily-habit.drop-target").forEach(x=>x.classList.remove("drop-target"));if(row.dataset.dragHabit!==draggedHabitId)row.classList.add("drop-target")});
+document.addEventListener("drop",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!draggedHabitId)return;e.preventDefault();reorderHabits(draggedHabitId,row.dataset.dragHabit);draggedHabitId=null;$(".daily-habit").forEach(x=>x.classList.remove("dragging","drop-target"))});
+document.addEventListener("dragend",()=>{draggedHabitId=null;$(".daily-habit").forEach(x=>x.classList.remove("dragging","drop-target"))});
+document.addEventListener("keydown",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!e.altKey||!["ArrowUp","ArrowDown"].includes(e.key))return;e.preventDefault();const list=activeHabits(),i=list.findIndex(h=>h.id===row.dataset.dragHabit),next=i+(e.key==="ArrowUp"?-1:1);if(next>=0&&next<list.length)reorderHabits(row.dataset.dragHabit,list[next].id)});
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();dataFolder?saveFolder():exportData()}});
 render();
 let lastDay=today();setInterval(()=>{if(view==="tracker"){const now=new Date(),day=today();$("#liveClock").textContent=now.toLocaleTimeString(undefined,{hour12:false});if(day!==lastDay){lastDay=day;renderTracker()}}},1000);
