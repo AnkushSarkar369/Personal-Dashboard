@@ -27,9 +27,23 @@ try{const raw=localStorage.getItem("habit-radar-state");if(raw)data=normalize(JS
 if(!selectedPool)selectedPool=data.pools.find(p=>!p.archived)?.id||null;
 function D(id){return data.dimensions.find(x=>x.id===id)}function P(id){return data.pools.find(x=>x.id===id)}function H(id){return data.habits.find(x=>x.id===id)}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function titleCase(s){return String(s??"").toLowerCase().replace(/(^|[\\s/–—-])([a-z])/g,(m,sep,ch)=>sep+ch.toUpperCase()).replace(/\\bMva\\b/gi,"MVA").replace(/\\bJson\\b/gi,"JSON").replace(/\\bApi\\b/gi,"API").replace(/\\bUrl\\b/gi,"URL").replace(/\\bCsv\\b/gi,"CSV").replace(/\\bHtml\\b/gi,"HTML").replace(/\\bCss\\b/gi,"CSS").replace(/\\bId\\b/gi,"ID")}
+function titleCase(s){
+ const acronyms={mva:"MVA",json:"JSON",api:"API",url:"URL",csv:"CSV",html:"HTML",css:"CSS",svg:"SVG",id:"ID"};
+ return String(s??"").replace(/[A-Za-z]+(?:'[A-Za-z]+)?/g,word=>{
+  const lower=word.toLowerCase();
+  return acronyms[lower]||(lower.length===1?lower.toUpperCase():lower[0].toUpperCase()+lower.slice(1));
+ }).replace(/([0-9])l\\b/gi,"$1L").replace(/([0-9])m\\b/gi,"$1M");
+}
+function applyTitleCase(){
+ const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),nodes=[];
+ while(walker.nextNode())if(walker.currentNode.nodeValue.trim())nodes.push(walker.currentNode);
+ nodes.forEach(node=>{if(!node.parentElement.closest("script,style"))node.nodeValue=titleCase(node.nodeValue)});
+ document.querySelectorAll("[title],[aria-label],[placeholder]").forEach(el=>{
+  ["title","aria-label","placeholder"].forEach(attr=>{if(el.hasAttribute(attr))el.setAttribute(attr,titleCase(el.getAttribute(attr)))});
+ });
+}
 function fmt(n){return (Math.round((Number(n)||0)*100)/100).toLocaleString(undefined,{maximumFractionDigits:2})}
-function toast(s){const e=$("#toast");e.textContent=s;e.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>e.classList.remove("show"),2300)}
+function toast(s){const e=$("#toast");e.textContent=titleCase(s);e.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>e.classList.remove("show"),2300)}
 function save(){try{localStorage.setItem("habit-radar-state",JSON.stringify(data));$("#storageDot").classList.add("saved");$("#storageText").textContent="Saved In This Browser"}catch(e){$("#storageText").textContent="Export Backup To Save";console.warn(e)}clearTimeout(saveTimer);saveTimer=setTimeout(saveFolder,250);render()}
 function activeHabits(){return data.habits.filter(h=>h.active&&!h.archived&&P(h.poolId)&&!P(h.poolId).archived)}
 function snapshot(h){const p=P(h.poolId);return {habitId:h.id,name:h.name,poolName:p?.name||"Archived Pool",points:h.points.map(x=>({dimensionId:x.dimensionId,dimensionName:D(x.dimensionId)?.name||"Archived Dimension",points:Number(x.points)||0})),mva:Number(data.settings.mva)||.25}}
@@ -38,7 +52,7 @@ function cycle(id,date,status){const h=H(id);if(!h)return;const rec=data.records
 function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:00"),start=new Date(now);if(range==="1m")start.setDate(start.getDate()-29);if(range==="3m")start.setDate(start.getDate()-89);Object.entries(data.records).forEach(([date,rec])=>{const dt=new Date(date+"T12:00:00");if(range!=="all"&&(dt<start||dt>now))return;Object.values(rec.items||{}).forEach(it=>{const s=it.snapshot;if(!s)return;const mult=it.status==="completed"?1:it.status==="mva"?s.mva:0;s.points.forEach(x=>{if(x.dimensionId===dimId)total+=x.points*mult})})});return total}
 function percent(d,range){const ds=data.dimensions.filter(x=>!x.archived),max=Math.max(25,...ds.map(x=>rawPoints(x.id,range)));return Math.min(100,rawPoints(d.id,range)/(max*1.18)*100)}
 function switchView(v){view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
-function render(){const labels={overview:["Your Character","Overview"],tracker:["Daily Check-In","Daily Tracker"],library:["Your System","Habit Library"],stats:["The Long View","Statistics"],settings:["Preferences","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view));renderOverview();renderTracker();renderLibrary();renderStats();renderSettings()}
+function render(){const labels={overview:["Your Character","Overview"],tracker:["Daily Check-In","Daily Tracker"],library:["Your System","Habit Library"],stats:["The Long View","Statistics"],settings:["Preferences","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view));renderOverview();renderTracker();renderLibrary();renderStats();renderSettings();applyTitleCase()}
 function renderOverview(){const ds=data.dimensions.filter(d=>!d.archived);drawRadar(ds,period);}
 function drawRadar(ds,range){
  const svg=$("#radar"),cx=500,cy=380,r=230,n=ds.length;
@@ -73,7 +87,7 @@ function drawRadar(ds,range){
 }
 function renderTracker(){
  const hs=activeHabits(),rec=data.records[today()],now=new Date();
- $("#liveDate").textContent=now.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});
+ $("#liveDate").textContent=titleCase(now.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"}));
  $("#liveClock").textContent=now.toLocaleTimeString(undefined,{hour12:false});
  $("#trackerEmpty").hidden=hs.length>0;
  $("#trackerList").innerHTML=hs.map(h=>{const it=rec?.items[h.id],status=it?.status==="completed"?"completed":it?.status==="mva"?"mva":"missed";return '<div class="daily-habit"><span class="daily-habit-name">'+esc(titleCase(h.name))+'</span><div class="status-dots" role="group" aria-label="'+esc(titleCase(h.name))+' Status"><button class="status-dot completed '+(status==="completed"?"chosen":"")+'" data-set-status="completed" data-habit="'+h.id+'" aria-label="Completed" title="Completed"></button><button class="status-dot mva '+(status==="mva"?"chosen":"")+'" data-set-status="mva" data-habit="'+h.id+'" aria-label="Minimum Viable Action" title="Minimum Viable Action"></button><button class="status-dot missed '+(status==="missed"?"chosen":"")+'" data-set-status="missed" data-habit="'+h.id+'" aria-label="Not Completed" title="Not Completed"></button></div></div>'}).join("");
