@@ -4,7 +4,7 @@ const DIMENSION_COLORS=["#4ade80","#60a5fa","#fbbf24","#fb923c","#f87171","#a3e6
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const uid=()=> "hr-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
 const today=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day};
-let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,dataFolder=null,saveTimer=null,draggedHabitId=null,lastTouchedHabitId=null;
+let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,draggedHabitId=null,lastTouchedHabitId=null;
 function sampleData(){
  const dims=[["health","Health",COLORS[0]],["academics","Academics",COLORS[1]],["relationships","Relationships",COLORS[2]],["looks","Looksmaxxing",COLORS[3]]].map(([id,name,color])=>({id:"d-"+id,name,color,benchmark:1000,archived:false}));
  const pools=[
@@ -82,7 +82,7 @@ function pointsFor(s,status){const m=status==="completed"?1:status==="mva"?s.mva
 function cycle(id,date,status){const h=H(id);if(!h)return;const rec=data.records[date]||(data.records[date]={date,items:{}});if(status==="missed")rec.items[id]={status:"missed",snapshot:snapshot(h),updatedAt:new Date().toISOString()};else rec.items[id]={status,snapshot:snapshot(h),updatedAt:new Date().toISOString()};save()}
 function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:00"),start=new Date(now);if(range==="1m")start.setDate(start.getDate()-29);if(range==="3m")start.setDate(start.getDate()-89);Object.entries(data.records).forEach(([date,rec])=>{const dt=new Date(date+"T12:00:00");if(range!=="all"&&(dt<start||dt>now))return;Object.values(rec.items||{}).forEach(it=>{const s=it.snapshot;if(!s)return;const mult=it.status==="completed"?1:it.status==="mva"?s.mva:0;s.points.forEach(x=>{if(x.dimensionId===dimId)total+=x.points*mult})})});return total}
 function percent(d,range){const ds=data.dimensions.filter(x=>!x.archived),max=Math.max(25,...ds.map(x=>rawPoints(x.id,range)));return Math.min(100,rawPoints(d.id,range)/(max*1.18)*100)}
-function switchView(v){view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
+function switchView(v){if(v==="stats"&&view!=="stats")statsSpotlightHabit=null;view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
 function setSidebarOpen(open){
  const app=$(".app"),button=$("#sidebarClose");
  app.classList.toggle("sidebar-collapsed",!open);
@@ -180,22 +180,18 @@ function renderHabitStats(){
   '</tbody></table>':'<div class="empty-state">No Activity Recorded In This Period.</div>';
 }
 function renderLibrary(){
- const touched=lastTouchedHabitId,host=$("#dimensionCards"),dims=data.dimensions;
+ const touched=lastTouchedHabitId,host=$("#dimensionCards"),dims=data.dimensions.filter(d=>!d.archived);
+ const linked=data.habits.filter(h=>habitAllocations(h).some(a=>dims.some(d=>d.id===a.dimensionId)));
+ $("#libraryCounts").innerHTML='<strong>'+String(dims.length).padStart(2,"0")+'</strong> dimensions <span>·</span> <strong>'+String(linked.length).padStart(2,"0")+'</strong> habits';
  host.innerHTML=dims.map(d=>{
   const habits=data.habits.filter(h=>habitAllocations(h).some(a=>a.dimensionId===d.id));
   const active=habits.filter(h=>h.active&&!h.archived).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"}));
   const inactive=habits.filter(h=>!h.active||h.archived).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"}));
   const rows=(list,isInactive)=>list.length?list.map(h=>{
    const allocation=habitAllocations(h).find(a=>a.dimensionId===d.id),shared=habitAllocations(h).length>1,locked=!h.active||h.archived;
-   return '<article class="library-habit-row '+(isInactive?'is-inactive ':'')+(shared?'is-shared':'')+(touched===h.id?' just-saved':'')+'" style="--habit-accent:'+esc(habitAccent(h))+'">'+
-    '<button class="library-habit-main" data-edit-habit="'+esc(h.id)+'" aria-label="Edit '+esc(h.name)+'"><span class="library-habit-copy"><strong>'+esc(titleCase(h.name))+'</strong><small>'+fmt(allocation?.points||0)+' pts'+(shared?' <span class="shared-label">Shared</span>':'')+'</small></span></button>'+
-    '<button class="library-lock '+(locked?'is-locked':'is-unlocked')+'" data-toggle-habit="'+esc(h.id)+'" aria-label="'+(locked?'Activate ':'Deactivate ')+esc(h.name)+'" title="'+(locked?'Unlock Habit':'Lock Habit')+'">'+
-    (locked?'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7.5-2"></path><path d="M16.5 5.5V10"></path></svg>')+'</button></article>';
+   return '<article class="library-habit-row '+(isInactive?'is-inactive ':'')+(shared?'is-shared':'')+(touched===h.id?' just-saved':'')+'" style="--habit-accent:'+esc(habitAccent(h))+'"><button class="library-habit-main" data-edit-habit="'+esc(h.id)+'" aria-label="Edit '+esc(h.name)+'"><span class="library-habit-copy"><strong>'+esc(titleCase(h.name))+'</strong><small>'+fmt(allocation?.points||0)+' pts'+(shared?' <span class="shared-label">Shared</span>':'')+'</small></span></button><button class="library-lock '+(locked?'is-locked':'is-unlocked')+'" data-toggle-habit="'+esc(h.id)+'" aria-label="'+(locked?'Activate ':'Deactivate ')+esc(h.name)+'" title="'+(locked?'Unlock Habit':'Lock Habit')+'">'+(locked?'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7.5-2"></path><path d="M16.5 5.5V10"></path></svg>')+'</button></article>';
   }).join(""):'<div class="library-group-empty">'+(isInactive?'No Inactive Habits':'No Active Habits')+'</div>';
-  return '<article class="dimension-card" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(safeColor(d.color,DIMENSION_COLORS[0]))+'">'+
-   '<header class="dimension-card-header"><div class="dimension-title-wrap"><span class="dimension-color-mark"></span><h3 data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</h3></div><div class="dimension-header-tools"><span class="dimension-total">'+habits.length+'</span><button class="dimension-edit" data-edit-dimension="'+esc(d.id)+'" aria-label="Rename '+esc(dimensionLabel(d.name))+'" title="Rename Dimension">···</button></div></header>'+
-   '<section class="library-group"><div class="library-group-heading"><span>Active</span><span>'+active.length+'</span></div><div class="library-habit-list">'+rows(active,false)+'</div></section>'+
-   '<section class="library-group inactive-group"><div class="library-group-heading"><span>Inactive</span><span>'+inactive.length+'</span></div><div class="library-habit-list">'+rows(inactive,true)+'</div></section></article>';
+  return '<article class="dimension-card" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(safeColor(d.color,DIMENSION_COLORS[0]))+'"><header class="dimension-card-header"><div class="dimension-title-wrap"><span class="dimension-color-mark"></span><h3 data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</h3></div><div class="dimension-header-tools"><span class="dimension-total">'+habits.length+'</span><button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(dimensionLabel(d.name))+'" title="Add Habit">+</button><button class="dimension-edit" data-edit-dimension="'+esc(d.id)+'" aria-label="Rename '+esc(dimensionLabel(d.name))+'" title="Rename Dimension">···</button></div></header><section class="library-group"><div class="library-group-heading"><span>Active</span><span>'+active.length+'</span></div><div class="library-habit-list">'+rows(active,false)+'</div></section><section class="library-group inactive-group"><div class="library-group-heading"><span>Inactive</span><span>'+inactive.length+'</span></div><div class="library-habit-list">'+rows(inactive,true)+'</div></section></article>';
  }).join("")+'<button class="add-dimension-card" data-add-dimension><span class="add-dimension-plus">＋</span><strong>Add Dimension</strong><small>Create another area of life</small></button>';
  lastTouchedHabitId=null;
 }
@@ -212,11 +208,11 @@ function editDimension(id){
  if(data.dimensions.some(x=>x.id!==id&&x.name.trim().toLowerCase()===name.trim().toLowerCase())){toast("That Dimension Already Exists.");return}
  d.name=name.trim();save();toast("Dimension Renamed.");
 }
-function openHabitModal(id){
+function openHabitModal(id,preselectedDimensionId=null){
  const h=id?H(id):null,dims=data.dimensions;if(!dims.length){toast("Create A Dimension Before Adding Habits.");return}
  const existing=new Map((h?.points||[]).map(x=>[x.dimensionId,x.points]));
  const options=dims.map(d=>{
-  const checked=existing.has(d.id),points=checked?existing.get(d.id):10;
+  const checked=existing.has(d.id)||(!h&&d.id===preselectedDimensionId),points=existing.has(d.id)?existing.get(d.id):10;
   return '<label class="dimension-choice '+(checked?'selected':'')+'"><span class="dimension-choice-name"><input type="checkbox" data-modal-dimension="'+esc(d.id)+'" '+(checked?'checked':'')+'><i style="--choice-accent:'+esc(d.color)+'"></i><span data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</span></span><span class="dimension-points"><input type="number" data-modal-points="'+esc(d.id)+'" min="0.25" step="0.25" value="'+esc(points)+'" '+(!checked?'disabled':'')+' aria-label="'+esc(dimensionLabel(d.name))+' points"><small>pts</small></span></label>';
  }).join("");
  const modal=$("#libraryModal");modal.dataset.editingHabit=h?.id||"";
@@ -246,20 +242,39 @@ function submitHabitModal(e){
 }
 function toggleHabit(id){const h=H(id);if(!h)return;h.active=!(h.active&&!h.archived);h.archived=false;lastTouchedHabitId=id;save();toast(h.active?"Habit activated.":"Habit made inactive.")}
 
-function renderStats(){
- const ds=data.dimensions.filter(d=>!d.archived),total=ds.reduce((a,d)=>a+rawPoints(d.id,period),0),rec=data.records[today()];
- let todayTotal=0;
- if(rec)Object.values(rec.items).forEach(it=>todayTotal+=pointsFor(it.snapshot,it.status));
- $("#statsCards").innerHTML=
-  '<div class="stat-card"><div class="eyebrow">Points In View</div><strong>'+fmt(total)+'</strong><span>'+(period==="all"?"Accumulated Total":period==="1m"?"Last 30 Days":"Last 90 Days")+'</span></div>'+
-  '<div class="stat-card"><div class="eyebrow">Active Habits</div><strong>'+activeHabits().length+'</strong><span>Currently enabled</span></div>'+
-  '<div class="stat-card"><div class="eyebrow">Points Today</div><strong>'+fmt(todayTotal)+'</strong><span>Across all dimensions</span></div>';
- $("#statsTable").innerHTML=ds.length?
-  '<div class="stats-table-wrap"><table class="data-table"><thead><tr><th>Dimension</th><th>Points</th><th>Benchmark</th><th>Progress</th></tr></thead><tbody>'+
-  ds.map(d=>'<tr class="dimension-stat-row" data-open-dimension="'+esc(d.id)+'" tabindex="0" role="button" aria-label="Open '+esc(dimensionLabel(d.name))+' in Habit Library"><td><span class="dimension-table-label" style="--dimension-accent:'+esc(d.color)+'"><i></i><span data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</span><span class="dimension-row-open" aria-hidden="true">↗</span></span></td><td>'+fmt(rawPoints(d.id,period))+'</td><td>'+fmt(d.benchmark)+'</td><td>'+percent(d,period).toFixed(1)+'%</td></tr>').join("")+
-  '</tbody></table></div>':'<div class="empty-state">No dimensions to report.</div>';
- applyTitleCase();
+function statsDateRange(){const end=new Date(today()+"T12:00:00"),start=new Date(end);if(period==="1m")start.setDate(start.getDate()-29);else if(period==="3m")start.setDate(start.getDate()-89);else start.setTime(0);return {start,end}}
+function inStatsRange(date){const {start,end}=statsDateRange(),dt=new Date(date+"T12:00:00");return !Number.isNaN(dt.getTime())&&dt>=start&&dt<=end}
+function statsRecords(){return Object.entries(data.records||{}).filter(([date])=>inStatsRange(date)).sort((a,b)=>a[0].localeCompare(b[0]))}
+function dailyRecordPoints(record){return Object.values(record?.items||{}).reduce((sum,item)=>sum+(item?.snapshot?pointsFor(item.snapshot,item.status):0),0)}
+function statsHabitRecords(id){const rows=[];statsRecords().forEach(([date,record])=>{const item=record.items?.[id];if(item?.snapshot&&["completed","mva","missed"].includes(item.status))rows.push({date,item})});return rows}
+function renderWeeklyDistribution(){
+ const totals=Array(7).fill(0),counts=Array(7).fill(0),labels=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],{start,end}=statsDateRange(),cursor=new Date(start);
+ while(cursor<=end){const day=(cursor.getDay()+6)%7;counts[day]++;const date=cursor.getFullYear()+"-"+String(cursor.getMonth()+1).padStart(2,"0")+"-"+String(cursor.getDate()).padStart(2,"0");if(data.records[date])totals[day]+=dailyRecordPoints(data.records[date]);cursor.setDate(cursor.getDate()+1)}
+ const values=totals.map((v,i)=>counts[i]?v/counts[i]:0),max=Math.max(1,...values);
+ $("#weeklyChart").innerHTML='<div class="weekly-bars">'+values.map((v,i)=>'<div class="weekly-bar-column"><div class="weekly-bar-value">'+(v?fmt(v):"—")+'</div><div class="weekly-bar-track"><i style="height:'+Math.max(v?3:0,v/max*100)+'%"></i></div><span>'+labels[i]+'</span></div>').join("")+'</div><div class="chart-footnote">Average points per weekday · '+(period==="1m"?"30 days":period==="3m"?"90 days":"all time")+'</div>';
 }
+function renderHabitSpotlight(){
+ const all=data.habits.filter(h=>h.id&&Object.values(data.records||{}).some(r=>r.items?.[h.id]?.snapshot));
+ if(!statsSpotlightHabit||!all.some(h=>h.id===statsSpotlightHabit)){const choices=all.length?all:data.habits;statsSpotlightHabit=choices.length?choices[Math.floor(Math.random()*choices.length)].id:null}
+ const h=H(statsSpotlightHabit),host=$("#spotlightChart");
+ if(!h){$("#spotlightName").textContent="No Habit History";host.innerHTML='<div class="stats-empty">Record a habit to see its history.</div>';return}
+ $("#spotlightName").textContent=titleCase(h.name);
+ const daily=statsHabitRecords(h.id).map(x=>({date:x.date,value:pointsFor(x.item.snapshot,x.item.status),status:x.item.status}));
+ if(!daily.length){host.innerHTML='<div class="stats-empty">No records for this habit in the selected period.</div>';return}
+ const w=600,ht=220,p={l:28,r:16,t:18,b:34},max=Math.max(1,...daily.map(x=>x.value)),x=i=>p.l+(daily.length===1?(w-p.l-p.r)/2:i/(daily.length-1)*(w-p.l-p.r)),y=v=>ht-p.b-v/max*(ht-p.t-p.b),pts=daily.map((d,i)=>x(i)+","+y(d.value)).join(" "),area=p.l+","+y(0)+" "+pts+" "+x(daily.length-1)+","+y(0);
+ const circles=daily.map((d,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(d.value).toFixed(1)+'" r="3.5" class="spotlight-point"><title>'+esc(d.date)+': '+fmt(d.value)+' points · '+esc(d.status)+'</title></circle>').join("");
+ host.innerHTML='<svg class="spotlight-svg" viewBox="0 0 '+w+' '+ht+'" role="img" aria-label="Daily points for '+esc(h.name)+'"><line x1="'+p.l+'" y1="'+y(0)+'" x2="'+(w-p.r)+'" y2="'+y(0)+'" class="chart-axis"/><line x1="'+p.l+'" y1="'+y(max/2)+'" x2="'+(w-p.r)+'" y2="'+y(max/2)+'" class="chart-gridline"/><polygon points="'+area+'" class="spotlight-area"/><polyline points="'+pts+'" class="spotlight-line"/>'+circles+'<text x="'+p.l+'" y="'+(ht-8)+'" class="chart-date-label">'+esc(daily[0].date.slice(5))+'</text><text x="'+(w-p.r)+'" y="'+(ht-8)+'" text-anchor="end" class="chart-date-label">'+esc(daily[daily.length-1].date.slice(5))+'</text></svg><div class="spotlight-summary"><strong>'+fmt(daily.reduce((n,v)=>n+v.value,0))+'</strong><span>points in selected period</span><span class="spotlight-record-count">'+daily.length+' recorded '+(daily.length===1?"day":"days")+'</span></div>';
+}
+function renderDailyArchive(){
+ const rows=statsRecords().filter(([,r])=>Object.keys(r.items||{}).length).reverse();
+ $("#dailyArchive").innerHTML=rows.length?rows.map(([date,record])=>{const count=Object.keys(record.items||{}).length,points=dailyRecordPoints(record),label=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"}).format(new Date(date+"T12:00:00"));return '<div class="archive-row"><span class="archive-date">'+esc(label)+'</span><span class="archive-count">'+count+' '+(count===1?"habit":"habits")+'</span><strong class="archive-points">'+fmt(points)+' <small>pts</small></strong></div>'}).join(""):'<div class="stats-empty">No recorded days in this period.</div>';
+}
+function renderHabitLeaders(){
+ const cats=[["completed","Most Completed","Full completions"],["mva","Most MVAed","Minimum viable actions"],["missed","Most Missed","Recorded misses"]],totals=new Map();
+ statsRecords().forEach(([,record])=>Object.entries(record.items||{}).forEach(([id,item])=>{if(!["completed","mva","missed"].includes(item?.status))return;const v=totals.get(id)||{completed:0,mva:0,missed:0,name:item.snapshot?.name||H(id)?.name||"Unknown Habit"};v[item.status]++;totals.set(id,v)}));
+ $("#habitLeaders").innerHTML=cats.map(([key,label,desc])=>{const max=Math.max(0,...Array.from(totals.values(),v=>v[key])),leaders=max?Array.from(totals.entries()).filter(([,v])=>v[key]===max).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([id,v])=>({id,...v})):[];return '<section class="leader-category"><div class="leader-category-heading"><span>'+label+'</span><small>'+desc+'</small></div>'+(leaders.length?'<div class="leader-names">'+leaders.map(v=>'<div class="leader-row"><strong>'+esc(titleCase(v.name))+'</strong><span>'+v[key]+'</span></div>').join("")+'</div>':'<div class="leader-empty">No records</div>')+'</section>'}).join("");
+}
+function renderStats(){renderWeeklyDistribution();renderHabitSpotlight();renderDailyArchive();renderHabitLeaders();applyTitleCase()}
 function openDimensionInLibrary(id){
  const d=D(id);if(!d)return;
  view="library";render();
@@ -283,7 +298,7 @@ document.addEventListener("click",e=>{
  const dimensionRow=e.target.closest("[data-open-dimension]");if(dimensionRow){openDimensionInLibrary(dimensionRow.dataset.openDimension);return}
  const nav=e.target.closest("[data-view]");if(nav){switchView(nav.dataset.view);return}
  const go=e.target.closest("[data-go]");if(go){switchView(go.dataset.go);return}
- if(e.target.closest("#addHabit")){openHabitModal(null);return}
+ const addForDimension=e.target.closest("[data-add-habit-dimension]");if(addForDimension){openHabitModal(null,addForDimension.dataset.addHabitDimension);return}
  const addDim=e.target.closest("[data-add-dimension]");if(addDim){addDimension();return}
  const toggle=e.target.closest("[data-toggle-habit]");if(toggle){toggleHabit(toggle.dataset.toggleHabit);return}
  const editHabit=e.target.closest("[data-edit-habit]");if(editHabit){openHabitModal(editHabit.dataset.editHabit);return}
