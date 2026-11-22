@@ -38,22 +38,40 @@ function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:0
 function percent(d,range){const ds=data.dimensions.filter(x=>!x.archived),max=Math.max(25,...ds.map(x=>rawPoints(x.id,range)));return Math.min(100,rawPoints(d.id,range)/(max*1.18)*100)}
 function switchView(v){view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
 function render(){const labels={overview:["YOUR CHARACTER","Overview"],tracker:["DAILY CHECK-IN","Daily tracker"],library:["YOUR SYSTEM","Habit library"],stats:["THE LONG VIEW","Statistics"],settings:["PREFERENCES","Settings & data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view));renderOverview();renderTracker();renderLibrary();renderStats();renderSettings()}
-function renderOverview(){const ds=data.dimensions.filter(d=>!d.archived);drawRadar(ds,period);const total=ds.reduce((sum,d)=>sum+rawPoints(d.id,period),0);$("#characterTotal").textContent=fmt(total)+" TOTAL POINTS";}
+function renderOverview(){const ds=data.dimensions.filter(d=>!d.archived);drawRadar(ds,period);}
 function drawRadar(ds,range){
- const svg=$("#radar"),cx=450,cy=320,r=220,n=ds.length;
- if(!n){svg.innerHTML='<text x="450" y="320" text-anchor="middle" fill="#8993a2" font-size="18">Create your first life dimension</text>';return}
+ const svg=$("#radar"),cx=500,cy=380,r=230,n=ds.length;
+ if(!n){svg.setAttribute("viewBox","0 0 1000 760");svg.innerHTML='<text x="500" y="380" text-anchor="middle" fill="#8993a2" font-size="18">Create your first life dimension</text>';return}
+ svg.setAttribute("viewBox","0 0 1000 760");
  const vals=ds.map(d=>rawPoints(d.id,range)),max=Math.max(25,...vals)*1.18;
  const xy=(i,k)=>{const a=-Math.PI/2+i*2*Math.PI/n;return[cx+Math.cos(a)*r*k,cy+Math.sin(a)*r*k]};
- let defs='<defs><radialGradient id="coreGlow"><stop offset="0" stop-color="#ffffff" stop-opacity=".16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient><linearGradient id="radarFill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4a8ff" stop-opacity=".28"/><stop offset=".5" stop-color="#75e8ce" stop-opacity=".12"/><stop offset="1" stop-color="#72a8ff" stop-opacity=".22"/></linearGradient><filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
- let out=defs+'<circle cx="'+cx+'" cy="'+cy+'" r="255" fill="url(#coreGlow)"/>';
+ let defs='<defs><radialGradient id="coreGlow"><stop offset="0" stop-color="#ffffff" stop-opacity=".18"/><stop offset=".55" stop-color="#a88cff" stop-opacity=".07"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient><linearGradient id="radarFill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4a8ff" stop-opacity=".25"/><stop offset=".5" stop-color="#75e8ce" stop-opacity=".10"/><stop offset="1" stop-color="#72a8ff" stop-opacity=".18"/></linearGradient><filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="starGlow" x="-300%" y="-300%" width="700%" height="700%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+ let out=defs+'<g class="star-field">';
+ for(let i=0;i<68;i++){
+  const sx=(i*197+53)%990+5,sy=(i*127+31)%750+5,size=[.55,.8,1.05,1.3][i%4],opacity=.12+(i%5)*.045;
+  out+='<circle class="star" cx="'+sx+'" cy="'+sy+'" r="'+size+'" style="opacity:'+opacity+';animation-delay:-'+((i*17)%50)/10+'s;--twinkle:'+((2.8+(i%5)*.65).toFixed(2))+'s"/>';
+ }
+ for(let i=0;i<9;i++){
+  const sx=(i*311+127)%960+20,sy=(i*173+83)%700+30;
+  out+='<path class="star-spark" d="M '+sx+' '+(sy-3.5)+' L '+sx+' '+(sy+3.5)+' M '+(sx-3.5)+' '+sy+' L '+(sx+3.5)+' '+sy+'" style="animation-delay:-'+(i*.7).toFixed(1)+'s"/>';
+ }
+ out+='</g><circle cx="'+cx+'" cy="'+cy+'" r="310" fill="url(#coreGlow)"/>';
  [.25,.5,.75,1].forEach(k=>out+='<polygon class="radar-grid" points="'+ds.map((d,i)=>xy(i,k).join(",")).join(" ")+'"/>');
- ds.forEach((d,i)=>{const a=-Math.PI/2+i*2*Math.PI/n,q=xy(i,1),v=vals[i]/max,p=xy(i,v),label=xy(i,1.22),anchor=Math.cos(a)>.2?"start":Math.cos(a)<-.2?"end":"middle";out+='<line class="radar-axis" x1="'+cx+'" y1="'+cy+'" x2="'+q[0]+'" y2="'+q[1]+'" style="stroke:'+esc(d.color)+';stroke-opacity:.42"/><circle class="radar-orbit" cx="'+q[0]+'" cy="'+q[1]+'" r="5" style="stroke:'+esc(d.color)+'"/><circle class="radar-node-glow" cx="'+p[0]+'" cy="'+p[1]+'" r="15" fill="'+esc(d.color)+'"/><circle class="radar-node" cx="'+p[0]+'" cy="'+p[1]+'" r="5.5" fill="'+esc(d.color)+'"/><text class="radar-label" x="'+label[0]+'" y="'+(label[1]-5)+'" text-anchor="'+anchor+'">'+esc(d.name)+'</text><text class="radar-value" x="'+label[0]+'" y="'+(label[1]+16)+'" text-anchor="'+anchor+'">'+fmt(vals[i])+' pts</text>'});
+ ds.forEach((d,i)=>{const q=xy(i,1);out+='<line class="radar-axis" x1="'+cx+'" y1="'+cy+'" x2="'+q[0]+'" y2="'+q[1]+'" style="stroke:'+esc(d.color)+';stroke-opacity:.48"/><circle class="radar-orbit" cx="'+q[0]+'" cy="'+q[1]+'" r="5" style="stroke:'+esc(d.color)+'"/>'});
  const points=ds.map((d,i)=>xy(i,vals[i]/max).join(",")).join(" ");
  out+='<polygon class="radar-shape" points="'+points+'"/>';
- ds.forEach((d,i)=>{const p=xy(i,vals[i]/max);out+='<circle class="radar-point" cx="'+p[0]+'" cy="'+p[1]+'" r="7" style="fill:'+esc(d.color)+';filter:url(#softGlow)"/>'});
- out+='<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#f4edff"/>';
+ ds.forEach((d,i)=>{
+  const a=-Math.PI/2+i*2*Math.PI/n,p=xy(i,vals[i]/max),label=xy(i,1.27),anchor=Math.cos(a)>.2?"start":Math.cos(a)<-.2?"end":"middle";
+  const halo=17+(i%3)*3,ring=10+(i%3)*2,dash=i%3===0?"1.5 3":i%3===1?"3 2":"1 2.5";
+  out+='<circle class="radar-node-glow" cx="'+p[0]+'" cy="'+p[1]+'" r="'+halo+'" fill="'+esc(d.color)+'" style="animation-delay:-'+(i*.8).toFixed(1)+'s"/>'+
+   '<circle class="radar-personality-ring" cx="'+p[0]+'" cy="'+p[1]+'" r="'+ring+'" style="stroke:'+esc(d.color)+';stroke-dasharray:'+dash+';animation-delay:-'+(i*.55).toFixed(1)+'s"/>'+
+   '<circle class="radar-node" cx="'+p[0]+'" cy="'+p[1]+'" r="'+(5.2+(i%2)*.8)+'" fill="'+esc(d.color)+'"/>'+
+   '<circle class="radar-point" cx="'+p[0]+'" cy="'+p[1]+'" r="2.3" style="fill:#fff;filter:url(#softGlow)"/>'+
+   '<text class="radar-label" x="'+label[0]+'" y="'+(label[1]-6)+'" text-anchor="'+anchor+'" style="fill:'+esc(d.color)+'">'+esc(d.name)+'</text>'+
+   '<text class="radar-value" x="'+label[0]+'" y="'+(label[1]+15)+'" text-anchor="'+anchor+'">'+fmt(vals[i])+' pts</text>';
+ });
+ out+='<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#f4edff"/><circle class="radar-core-halo" cx="'+cx+'" cy="'+cy+'" r="12"/>';
  svg.innerHTML=out;
- $("#radarCaption").textContent=range==="all"?"Cumulative progression · each dimension scales dynamically":range==="1m"?"Last 30 days · each dimension scales dynamically":"Last 90 days · each dimension scales dynamically";
 }
 function renderTracker(){
  const hs=activeHabits(),rec=data.records[today()],now=new Date();
