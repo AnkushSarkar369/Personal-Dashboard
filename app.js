@@ -78,6 +78,7 @@ function cycle(id,date,status){const h=H(id);if(!h)return;const rec=data.records
 function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:00"),start=new Date(now);if(range==="1m")start.setDate(start.getDate()-29);if(range==="3m")start.setDate(start.getDate()-89);Object.entries(data.records).forEach(([date,rec])=>{const dt=new Date(date+"T12:00:00");if(range!=="all"&&(dt<start||dt>now))return;Object.values(rec.items||{}).forEach(it=>{const s=it.snapshot;if(!s)return;const mult=it.status==="completed"?1:it.status==="mva"?s.mva:0;s.points.forEach(x=>{if(x.dimensionId===dimId)total+=x.points*mult})})});return total}
 function percent(d,range){const ds=data.dimensions.filter(x=>!x.archived),max=Math.max(25,...ds.map(x=>rawPoints(x.id,range)));return Math.min(100,rawPoints(d.id,range)/(max*1.18)*100)}
 function switchView(v){view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
+function setSidebarOpen(open){const app=$(".app");app.classList.toggle("sidebar-collapsed",!open);$("#sidebarClose").setAttribute("aria-expanded",String(open));$("#sidebarReopen").setAttribute("aria-expanded",String(open));try{localStorage.setItem("habitRadarSidebarOpen",open?"1":"0")}catch(e){}}
 function render(){const statHabit=H(selectedStatsHabit);const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["Your System","Habit Library"],stats:["The Long View","Statistics"],settings:["Preferences","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderOverview();renderTracker();renderHabitStats();renderLibrary();renderStats();renderSettings();applyTitleCase()}
 function renderOverview(){const ds=data.dimensions.filter(d=>!d.archived);drawRadar(ds,period);}
 function drawRadar(ds,range){
@@ -234,6 +235,8 @@ async function chooseFolder(){if(!window.showDirectoryPicker){toast("Folder Savi
 async function saveFolder(){if(!dataFolder)return;try{const file=await dataFolder.getFileHandle("habit-radar.json",{create:true}),w=await file.createWritable();await w.write(JSON.stringify(data,null,2));await w.close()}catch(e){console.warn(e);toast("Folder Save Failed. Export A JSON Backup.")}}
 function restoreSample(){if(confirm("Replace The Current Workspace With The Original Sample Data? Export A Backup First If Needed.")){data=sampleData();save();toast("Sample Workspace Restored.")}}
 document.addEventListener("click",e=>{
+ if(e.target.closest("#sidebarClose")){setSidebarOpen(false);return}
+ if(e.target.closest("#sidebarReopen")){setSidebarOpen(true);return}
  const close=e.target.closest("[data-close-library-modal]");if(close){closeHabitModal();return}
  if(e.target===$("#libraryModal")){closeHabitModal();return}
  const back=e.target.closest("[data-back-tracker]");if(back){switchView("tracker");return}
@@ -272,5 +275,6 @@ document.addEventListener("dragend",()=>{draggedHabitId=null;$$( ".daily-habit")
 document.addEventListener("keydown",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||e.target.closest("button"))return;if(e.key==="Enter"){e.preventDefault();openHabitStats(row.dataset.openHabit);return}if(!e.altKey||!["ArrowUp","ArrowDown"].includes(e.key))return;e.preventDefault();const list=activeHabits(),i=list.findIndex(h=>h.id===row.dataset.dragHabit),next=i+(e.key==="ArrowUp"?-1:1);if(next>=0&&next<list.length)reorderHabits(row.dataset.dragHabit,list[next].id)});
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();dataFolder?saveFolder():exportData()}});
 render();
+try{if(localStorage.getItem("habitRadarSidebarOpen")==="0")setSidebarOpen(false)}catch(e){}
 let lastDay=today();setInterval(()=>{if(view==="tracker"){const now=new Date(),day=today();$("#liveClock").textContent=formatIstTime(now);if(day!==lastDay){lastDay=day;renderTracker()}}},1000);
 })();
