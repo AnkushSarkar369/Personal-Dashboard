@@ -759,3 +759,39 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important;will-change:auto!important}
 }
+
+
+/* Compact sidebar mode: preserve the navigation rail and hide only its labels. */
+.app{transition:grid-template-columns .24s cubic-bezier(.2,.75,.2,1)}
+.sidebar{transform:none!important;transition:width .24s ease,padding .24s ease}
+.sidebar-reopen{display:none!important}
+.app.sidebar-collapsed{grid-template-columns:72px minmax(0,1fr)}
+.app.sidebar-collapsed .sidebar{
+ width:72px;padding:60px 7px 18px;transform:none;pointer-events:auto;
+ border-right:1px solid var(--line);box-shadow:none
+}
+.app.sidebar-collapsed .sidebar-close{left:21px;right:auto;top:16px}
+.app.sidebar-collapsed .brand{justify-content:center;gap:0;padding:0 0 35px}
+.app.sidebar-collapsed .brand>span:not(.brand-icon){display:none}
+.app.sidebar-collapsed .navigation{gap:8px}
+.app.sidebar-collapsed .nav-item{
+ min-height:42px;justify-content:center;gap:0;padding:10px 0;font-size:0;text-align:center
+}
+.app.sidebar-collapsed .nav-item .nav-text{display:none}
+.app.sidebar-collapsed .nav-icon{width:19px;height:19px}
+.app.sidebar-collapsed .nav-item.active:after{display:none}
+.app.sidebar-collapsed .sidebar-bottom .storage-status{display:none}
+.app.sidebar-collapsed .sidebar-bottom .nav-item{margin-top:8px}
+.app.sidebar-collapsed .main{max-width:1600px}
+.character-topline{justify-content:flex-end}
+.stats-heading,.library-heading{justify-content:flex-end}
+@media(max-width:700px){
+ .app{grid-template-columns:228px minmax(0,1fr)}
+ .app.sidebar-collapsed{grid-template-columns:72px minmax(0,1fr)}
+ .app.sidebar-collapsed .sidebar{
+  position:fixed;left:0;top:0;bottom:0;width:72px;height:100dvh;
+  padding:60px 7px 18px;transform:none;box-shadow:none
+ }
+ .app.sidebar-collapsed .main{padding-left:14px;padding-right:14px}
+ .app.sidebar-collapsed .sidebar-close{left:21px;right:auto}
+}
