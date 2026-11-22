@@ -886,3 +886,22 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 
 /* Library and Statistics carry their own compact page controls, not the global title bar. */
 .main:has(#view-library.active)>.topbar,.main:has(#view-stats.active)>.topbar{display:none}
+
+/* Statistics quadrant map: TR weekday, BR archive, TL leaders, BL graph. */
+.stats-quadrants{grid-template-areas:"leaders weekday" "graph archive"}
+.quadrant-weekday{grid-area:weekday}.quadrant-archive{grid-area:archive}.quadrant-leaders{grid-area:leaders}.quadrant-graph{grid-area:graph}
+.archive-row{position:relative;width:100%;border:0;border-bottom:1px solid rgba(66,77,95,.35);background:transparent;color:inherit;text-align:left;cursor:pointer;transition:background .16s ease,padding .16s ease}
+.archive-row:hover{padding-left:9px;background:rgba(180,154,255,.055)}.archive-open{color:#7d899b;font-size:11px;opacity:0;transition:opacity .16s ease}.archive-row:hover .archive-open,.archive-row:focus-visible .archive-open{opacity:1}
+.archive-back-button{padding:7px 10px;border:1px solid rgba(180,154,255,.28);border-radius:7px;background:rgba(180,154,255,.07);color:#c9baff;font-size:10px;white-space:nowrap}.date-context{color:#b49aff;font-size:9px;letter-spacing:.12em}
+.daily-habit.is-historical{opacity:.82}.daily-habit.is-historical .daily-grip{cursor:default;color:#778396}
+.library-intro{position:relative;max-width:1260px;margin:4px auto 25px;padding:10px 0 17px;border:0}
+.library-kicker{display:flex;justify-content:space-between;gap:16px;color:#8d98aa;font-size:9px;font-weight:750;letter-spacing:.2em}
+.library-kicker span:last-child{color:#687487;font-family:ui-monospace,monospace;font-size:8px;letter-spacing:.13em}.library-kicker i{color:#b49aff;font-style:normal}
+.library-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin:18px 0 13px}.library-title-lockup{position:relative}
+.library-title-mark{display:block;margin-bottom:5px;color:#b49aff;font-size:8px;font-weight:800;letter-spacing:.2em}
+.library-title-lockup h2{margin:0;color:#f0edf8;font-family:Georgia,"Times New Roman",serif;font-size:clamp(34px,4.4vw,54px);font-weight:400;letter-spacing:-.045em;line-height:1.02}
+.library-counts{display:flex;align-items:center;gap:7px;padding:10px 13px;border:1px solid rgba(180,154,255,.17);border-radius:10px;background:linear-gradient(135deg,rgba(180,154,255,.075),rgba(255,255,255,.012));color:#98a3b4;font-size:9px;letter-spacing:.08em;white-space:nowrap}
+.library-counts strong{color:#eee9ff;font-family:ui-monospace,monospace;font-size:16px;font-weight:600}
+.library-intro-rule{display:flex;align-items:center;gap:12px;color:#697588;font-size:8px;font-weight:750;letter-spacing:.16em}.library-intro-rule i{height:1px;flex:1;background:linear-gradient(90deg,rgba(180,154,255,.45),rgba(66,77,95,.25))}
+.library-quote{margin:11px 0 0;color:#929caf;font-family:Georgia,"Times New Roman",serif;font-size:12px;font-style:italic;line-height:1.6}
+@media(max-width:760px){.stats-quadrants{grid-template-areas:"leaders" "weekday" "graph" "archive"}.library-title-row{align-items:flex-start;flex-direction:column;gap:13px}.library-counts{align-self:flex-start}.library-kicker{font-size:8px;letter-spacing:.13em}.library-title-lockup h2{font-size:39px}.archive-open{opacity:.8}}
