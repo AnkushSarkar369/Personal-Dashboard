@@ -135,31 +135,27 @@
  animation:none!important;
 }
 .radar-node{
- stroke:#0b0d12;
- stroke-width:2;
- filter:drop-shadow(0 0 6px rgba(190,174,255,.32));
+ stroke:none;
+ filter:drop-shadow(0 0 5px rgba(190,174,255,.24));
 }
 .radar-label{
  font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;
  font-size:14px;
- font-weight:500;
- letter-spacing:1.5px;
- fill:#d9deea;
- paint-order:stroke;
- stroke:#0b0d12;
- stroke-width:4px;
- stroke-linejoin:round;
- filter:none;
+ font-weight:450;
+ letter-spacing:1.7px;
+ fill:#e0e4ed;
+ stroke:none;
+ paint-order:normal;
+ filter:drop-shadow(0 1px 5px rgba(0,0,0,.22));
 }
 .radar-value{
  font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;
  font-size:11px;
- font-weight:550;
- letter-spacing:.45px;
- fill:#a9b2c2;
- paint-order:stroke;
- stroke:#0b0d12;
- stroke-width:3px;
+ font-weight:450;
+ letter-spacing:.55px;
+ fill:#aeb7c6;
+ stroke:none;
+ paint-order:normal;
 }
 @media(max-width:700px){
  .radar-label{font-size:12px;letter-spacing:1.05px}
