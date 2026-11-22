@@ -12,25 +12,25 @@
   <div class="nav-label">Workspace</div>
   <nav class="navigation">
     <button class="nav-item active" data-view="overview"><span>◉</span>Overview</button>
-    <button class="nav-item" data-view="tracker"><span>☷</span>Daily tracker</button>
-    <button class="nav-item" data-view="library"><span>▦</span>Habit library</button>
+    <button class="nav-item" data-view="tracker"><span>☷</span>Daily Tracker</button>
+    <button class="nav-item" data-view="library"><span>▦</span>Habit Library</button>
     <button class="nav-item" data-view="stats"><span>⌁</span>Statistics</button>
   </nav>
   <div class="sidebar-bottom">
     <div class="storage-status" hidden><i id="storageDot"></i><span id="storageText">Saved in this browser</span></div>
-    <button class="nav-item" data-view="settings"><span>⚙</span>Settings & data</button>
+    <button class="nav-item" data-view="settings"><span>⚙</span>Settings & Data</button>
   </div>
 </aside>
 <main class="main">
 <header class="topbar">
   <div><div class="eyebrow" id="pageEyebrow">Your Character</div><h1 id="pageTitle">Overview</h1></div>
-  <div class="topbar-right"><span id="todayLabel"></span><button class="icon-button" id="quickAdd" title="Create a habit">＋</button><span class="avatar">A</span></div>
+  <div class="topbar-right"><span id="todayLabel"></span><button class="icon-button" id="quickAdd" title="Create A Habit">＋</button><span class="avatar">A</span></div>
 </header>
 
 <section class="view active" id="view-overview">
   <div class="character-screen">
     <div class="character-topline"><div class="segmented" data-period-control><button class="selected" data-period="1m">1M</button><button data-period="3m">3M</button><button data-period="all">All Time</button></div></div>
-    <div class="radar-stage"><svg id="radar" viewBox="0 0 900 660" role="img" aria-label="Living character progression radar"></svg></div>
+    <div class="radar-stage"><svg id="radar" viewBox="0 0 900 660" role="img" aria-label="Living Character Progression Radar"></svg></div>
   </div>
 </section>
 
@@ -38,18 +38,18 @@
   <div class="daily-screen">
     <header class="daily-header"><div><div class="eyebrow">Daily Check-In</div><h2 id="liveDate">Today</h2></div><div class="live-clock" id="liveClock">00:00:00</div></header>
     <div id="trackerList" class="tracker-list"></div>
-    <div class="daily-empty" id="trackerEmpty" hidden>No active habits. Configure your habits in the library.</div>
+    <div class="daily-empty" id="trackerEmpty" hidden>No Active Habits. Configure Your Habits In The Library.</div>
   </div>
 </section>
 
 <section class="view" id="view-library">
-  <div class="section-heading"><div><div class="eyebrow">Your System</div><h2>Habit library</h2><p class="muted">Organise dimensions, pools and habits. Enable only what you want active.</p></div><button class="primary-button" id="newHabit">＋ New habit</button></div>
+  <div class="section-heading"><div><div class="eyebrow">Your System</div><h2>Habit Library</h2><p class="muted">Organise Dimensions, Pools And Habits. Enable Only What You Want Active.</p></div><button class="primary-button" id="newHabit">＋ New Habit</button></div>
   <div class="library-layout">
     <aside class="panel library-sidebar">
-      <div class="panel-heading"><h3>Dimensions</h3><button class="icon-button small-icon" id="addDimension" title="Add dimension">＋</button></div>
+      <div class="panel-heading"><h3>Dimensions</h3><button class="icon-button small-icon" id="addDimension" title="Add Dimension">＋</button></div>
       <div id="dimensionManager" class="dimension-manager"></div>
       <div class="library-divider"></div>
-      <div class="panel-heading"><h3>Habit pools</h3><button class="icon-button small-icon" id="addPool" title="Add pool">＋</button></div>
+      <div class="panel-heading"><h3>Habit Pools</h3><button class="icon-button small-icon" id="addPool" title="Add Pool">＋</button></div>
       <div id="poolManager" class="pool-manager"></div>
     </aside>
     <div class="panel habit-browser">
@@ -57,25 +57,25 @@
       <div id="habitList" class="habit-list"></div>
     </div>
     <aside class="panel config-panel">
-      <div class="config-heading"><div><div class="eyebrow">Habit Configuration</div><h3 id="configTitle">Select a habit</h3></div><span class="config-mark">◈</span></div>
-      <div id="configContent" class="config-content"><div class="config-empty">Select a habit from the list to configure its details and dimension contributions.</div></div>
+      <div class="config-heading"><div><div class="eyebrow">Habit Configuration</div><h3 id="configTitle">Select A Habit</h3></div><span class="config-mark">◈</span></div>
+      <div id="configContent" class="config-content"><div class="config-empty">Select A Habit from the list to configure its details and dimension contributions.</div></div>
     </aside>
   </div>
 </section>
 
 <section class="view" id="view-stats">
-  <div class="section-heading stats-heading"><div><div class="eyebrow">The Long View</div><h2>Statistics</h2><p class="muted">Recent performance and accumulated progression.</p></div><div class="segmented large" data-period-control><button class="selected" data-period="1m">1 Month</button><button data-period="3m">3 Months</button><button data-period="all">Cumulative</button></div></div>
+  <div class="section-heading stats-heading"><div><div class="eyebrow">The Long View</div><h2>Statistics</h2><p class="muted">Recent Performance And Accumulated Progression.</p></div><div class="segmented large" data-period-control><button class="selected" data-period="1m">1 Month</button><button data-period="3m">3 Months</button><button data-period="all">Cumulative</button></div></div>
   <div id="statsCards" class="stats-cards"></div>
-  <article class="panel"><div class="panel-heading"><div><div class="eyebrow">Dimension Breakdown</div><h3>Progression ledger</h3></div></div><div id="statsTable"></div></article>
+  <article class="panel"><div class="panel-heading"><div><div class="eyebrow">Dimension Breakdown</div><h3>Progression Ledger</h3></div></div><div id="statsTable"></div></article>
 </section>
 
 <section class="view" id="view-settings">
-  <div class="section-heading"><div><div class="eyebrow">Preferences</div><h2>Settings & data</h2><p class="muted">Configure scoring and keep your records portable.</p></div></div>
+  <div class="section-heading"><div><div class="eyebrow">Preferences</div><h2>Settings & Data</h2><p class="muted">Configure Scoring And Keep Your Records Portable.</p></div></div>
   <div class="settings-grid">
-    <article class="panel settings-card"><div class="eyebrow">Scoring</div><h3>Minimum viable action</h3><div class="setting-row"><label for="mvaRange">Global MVA multiplier</label><strong id="mvaValue">0.25×</strong></div><input type="range" id="mvaRange" min=".1" max=".5" step=".05" value=".25"><div class="range-label"><span>0.10×</span><span>0.50×</span></div><p class="muted">Applies to future activity only. Existing records keep their original multiplier.</p><div class="setting-row"><label for="defaultBenchmark">Default benchmark</label><input id="defaultBenchmark" type="number" min="1" step="100" value="1000"></div></article>
-    <article class="panel settings-card"><div class="eyebrow">Portable Storage</div><h3>Data location</h3><p class="muted">The app saves in browser storage automatically. On supported desktop browsers, connect a folder to also write a JSON file there.</p><button class="secondary-button" id="chooseFolder">Choose data folder</button><div id="storageDetail" class="storage-detail">No external folder connected.</div><button class="secondary-button" id="saveNow">Save now / export</button></article>
-    <article class="panel settings-card"><div class="eyebrow">Backup & Restore</div><h3>Your data, portable</h3><p class="muted">Export or restore dimensions, pools, habits, active states and historical records.</p><div class="button-row"><button class="secondary-button" id="exportData">Export JSON</button><label class="secondary-button file-button">Import JSON<input type="file" id="importData" accept=".json,application/json" hidden></label></div></article>
-    <article class="panel settings-card danger-card"><div class="eyebrow">Reset</div><h3>Reset sample / personal data</h3><p class="muted">This clears the current setup and restores the original sample workspace.</p><button class="danger-button" id="resetData">Restore sample data</button></article>
+    <article class="panel settings-card"><div class="eyebrow">Scoring</div><h3>Minimum Viable Action</h3><div class="setting-row"><label for="mvaRange">Global MVA Multiplier</label><strong id="mvaValue">0.25×</strong></div><input type="range" id="mvaRange" min=".1" max=".5" step=".05" value=".25"><div class="range-label"><span>0.10×</span><span>0.50×</span></div><p class="muted">Applies To Future Activity Only. Existing Records Keep Their Original Multiplier.</p><div class="setting-row"><label for="defaultBenchmark">Default Benchmark</label><input id="defaultBenchmark" type="number" min="1" step="100" value="1000"></div></article>
+    <article class="panel settings-card"><div class="eyebrow">Portable Storage</div><h3>Data Location</h3><p class="muted">The App Saves In Browser Storage Automatically. On Supported Desktop Browsers, Connect A Folder To Also Write A JSON File There.</p><button class="secondary-button" id="chooseFolder">Choose Data Folder</button><div id="storageDetail" class="storage-detail">No External Folder Connected.</div><button class="secondary-button" id="saveNow">Save Now / Export</button></article>
+    <article class="panel settings-card"><div class="eyebrow">Backup & Restore</div><h3>Your Data, Portable</h3><p class="muted">Export Or Restore Dimensions, Pools, Habits, Active States And Historical Records.</p><div class="button-row"><button class="secondary-button" id="exportData">Export JSON</button><label class="secondary-button file-button">Import JSON<input type="file" id="importData" accept=".json,application/json" hidden></label></div></article>
+    <article class="panel settings-card danger-card"><div class="eyebrow">Reset</div><h3>Reset Sample / Personal Data</h3><p class="muted">This Clears The Current Setup And Restores The Original Sample Workspace.</p><button class="danger-button" id="resetData">Restore Sample Data</button></article>
   </div>
 </section>
 </main></div>
