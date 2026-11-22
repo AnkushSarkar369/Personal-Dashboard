@@ -66,3 +66,17 @@
  .status-dot{width:14px;height:14px}
 }
 @media(prefers-reduced-motion:reduce){.radar-shape,.radar-node-glow,.radar-point{animation:none!important;transition:none!important}}
+
+
+/* Overview viewport correction: keep the complete radar in view without page scrolling. */
+.main:has(#view-overview.active){height:100svh;min-height:0;padding-top:10px;padding-bottom:10px;overflow:hidden}
+.main:has(#view-overview.active) .character-screen{height:calc(100svh - 20px);min-height:0;justify-content:stretch;overflow:visible}
+.main:has(#view-overview.active) .character-topline{flex:0 0 auto;justify-content:flex-end;padding:8px 6px 4px}
+.main:has(#view-overview.active) .radar-stage{flex:1 1 auto;width:100%;height:auto;min-height:0;max-height:none;margin:0}
+.main:has(#view-overview.active) .radar-stage svg{width:100%;height:100%;max-width:none;overflow:visible}
+.main:has(#view-overview.active) .character-screen:before{inset:10% 12%}
+@media(max-width:700px){
+ .main:has(#view-overview.active){height:calc(100svh - 64px);padding:8px 8px 0;overflow:hidden}
+ .main:has(#view-overview.active) .character-screen{height:100%;min-height:0}
+ .main:has(#view-overview.active) .radar-stage{height:auto;min-height:0;max-height:none}
+}
