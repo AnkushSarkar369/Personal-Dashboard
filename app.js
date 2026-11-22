@@ -19,7 +19,11 @@ function sampleData(){
   ["h-connect","Meaningful conversation","p-social",15,"d-relationships"],["h-family","Time with family","p-social",10,"d-relationships"],
   ["h-groom","Grooming routine","p-presence",8,"d-looks"],["h-posture","Posture & mobility","p-presence",10,"d-looks"]
  ].map(([id,name,poolId,points,dimensionId])=>({id,name,poolId,points:[{dimensionId,points}],active:true,archived:false}));
- return {version:2,visualVersion:2,settings:{mva:.25,defaultBenchmark:1000},dimensions:dims,pools,habits,records:{}};
+ const records={};const todayDate=new Date(today()+"T12:00:00"),cycle=["completed","completed","mva","completed","missed","completed","mva","completed"];
+ for(let offset=89;offset>=0;offset--){const dt=new Date(todayDate);dt.setDate(dt.getDate()-offset);const date=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0"),items={};
+ habits.forEach((h,index)=>{const seed=(offset*7+index*11+index*index)%19;if(seed===0||seed===7||seed===14)return;const status=cycle[(offset*3+index*5+Math.floor(offset/6))%cycle.length],p=pools.find(x=>x.id===h.poolId);items[h.id]={status,snapshot:{habitId:h.id,name:h.name,poolName:p?.name||"Habit Library",points:h.points.map(x=>({dimensionId:x.dimensionId,dimensionName:dims.find(d=>d.id===x.dimensionId)?.name||"Dimension",points:x.points})),mva:.25},updatedAt:new Date(dt.getTime()+index*60000).toISOString()};});
+ if(Object.keys(items).length)records[date]={date,items};}
+ return {version:2,visualVersion:2,settings:{mva:.25,defaultBenchmark:1000},dimensions:dims,pools,habits,records};
 }
 function safeColor(value,fallback){
  const v=String(value||"").trim();
@@ -79,10 +83,10 @@ function habitAccent(h){const a=habitAllocations(h);return a.length>1?SPECIAL_CO
 function activeHabits(){return data.habits.filter(h=>h.active&&!h.archived&&habitAllocations(h).length>0)}
 function snapshot(h){const p=P(h.poolId);return {habitId:h.id,name:h.name,poolName:p?.name||"Habit Library",points:(h.points||[]).map(x=>({dimensionId:x.dimensionId,dimensionName:D(x.dimensionId)?.name||"Archived Dimension",points:Number(x.points)||0})),mva:Number(data.settings.mva)||.25}}
 function pointsFor(s,status){const m=status==="completed"?1:status==="mva"?s.mva:0;return s.points.reduce((a,x)=>a+x.points*m,0)}
-function cycle(id,date,status){const h=H(id);if(!h)return;const rec=data.records[date]||(data.records[date]={date,items:{}});if(status==="missed")rec.items[id]={status:"missed",snapshot:snapshot(h),updatedAt:new Date().toISOString()};else rec.items[id]={status,snapshot:snapshot(h),updatedAt:new Date().toISOString()};save()}
+function cycle(id,date,status){const h=H(id),rec=data.records[date]||(data.records[date]={date,items:{}}),previous=rec.items?.[id];if(!h&&!previous?.snapshot)return;if(!["completed","mva","missed"].includes(status))return;rec.items[id]={status,snapshot:previous?.snapshot||snapshot(h),updatedAt:new Date().toISOString()};save()}
 function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:00"),start=new Date(now);if(range==="1m")start.setDate(start.getDate()-29);if(range==="3m")start.setDate(start.getDate()-89);Object.entries(data.records).forEach(([date,rec])=>{const dt=new Date(date+"T12:00:00");if(range!=="all"&&(dt<start||dt>now))return;Object.values(rec.items||{}).forEach(it=>{const s=it.snapshot;if(!s)return;const mult=it.status==="completed"?1:it.status==="mva"?s.mva:0;s.points.forEach(x=>{if(x.dimensionId===dimId)total+=x.points*mult})})});return total}
 function percent(d,range){const ds=data.dimensions.filter(x=>!x.archived),max=Math.max(25,...ds.map(x=>rawPoints(x.id,range)));return Math.min(100,rawPoints(d.id,range)/(max*1.18)*100)}
-function switchView(v){if(v==="stats"&&view!=="stats")statsSpotlightHabit=null;view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
+function switchView(v){if(v==="stats"&&view!=="stats")statsSpotlightHabit=null;if(v==="tracker"&&view!=="tracker")selectedDate=today();view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
 function setSidebarOpen(open){
  const app=$(".app"),button=$("#sidebarClose");
  app.classList.toggle("sidebar-collapsed",!open);
@@ -129,24 +133,14 @@ function drawRadar(ds,range){
  svg.innerHTML=out;
 }
 function renderTracker(){
- const hs=activeHabits(),todayDate=today(),rec=data.records[todayDate],now=new Date(),dateParts=formatOrdinalDate(now).split(", ");
- $("#liveDate").innerHTML='<span class="date-weekday">'+esc(dateParts[0])+'</span><span class="date-rest">'+esc(dateParts.slice(1).join(", "))+'</span>';
- $("#liveClock").innerHTML=clockMarkup(now);
- $("#trackerEmpty").hidden=hs.length>0;
- const resolved=resolvedCount(rec,hs);
- $("#todayProgressLabel").textContent=resolved+" / "+hs.length+" resolved";
- $("#todayProgressFill").style.transform="scaleX("+(hs.length?resolved/hs.length:0)+")";
- $("#trackerList").innerHTML=hs.map(h=>{
-  const it=rec?.items[h.id],status=it?.status||"";
-  return '<div class="daily-habit '+(status?"is-"+status:"")+'" style="--habit-accent:'+esc(habitAccent(h))+';" data-open-habit="'+esc(h.id)+'" data-drag-habit="'+esc(h.id)+'" tabindex="0" role="link" aria-label="Open '+esc(titleCase(h.name))+' statistics. Drag to reorder.">'+
-   '<span class="daily-grip" draggable="true" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>'+
-   '<span class="daily-habit-name">'+esc(titleCase(h.name))+'</span>'+
-   '<div class="status-dots" role="group" aria-label="'+esc(titleCase(h.name))+' status">'+
-    '<button class="status-dot completed '+(status==="completed"?"chosen":"")+'" data-set-status="completed" data-habit="'+esc(h.id)+'" aria-label="Completed" aria-pressed="'+(status==="completed")+'" title="Completed"></button>'+
-    '<button class="status-dot mva '+(status==="mva"?"chosen":"")+'" data-set-status="mva" data-habit="'+esc(h.id)+'" aria-label="Minimum viable action" aria-pressed="'+(status==="mva")+'" title="Minimum viable action"></button>'+
-    '<button class="status-dot missed '+(status==="missed"?"chosen":"")+'" data-set-status="missed" data-habit="'+esc(h.id)+'" aria-label="Not completed" aria-pressed="'+(status==="missed")+'" title="Not completed"></button>'+
-   '</div></div>';
- }).join("");
+ const date=selectedDate||today(),isToday=date===today(),rec=data.records[date],now=new Date(),dateParts=formatOrdinalDate(new Date(date+"T12:00:00")).split(", ");
+ const active=activeHabits(),historical=Object.entries(rec?.items||{}).filter(([id,item])=>!active.some(h=>h.id===id)&&item?.snapshot).map(([id,item])=>({id,name:item.snapshot.name||H(id)?.name||"Archived Habit",historical:true}));
+ const hs=[...active,...historical],resolved=resolvedCount(rec,hs);
+ $("#liveDate").innerHTML='<span class="date-weekday">'+(isToday?"":'<span class="date-context">ARCHIVE / </span>')+esc(dateParts[0])+'</span><span class="date-rest">'+esc(dateParts.slice(1).join(", "))+'</span>';
+ $("#liveClock").innerHTML=isToday?clockMarkup(now):'<button class="archive-back-button" data-back-stats>← Back To Statistics</button>';
+ $("#todayProgressLabel").textContent=resolved+" / "+hs.length+" resolved";$("#todayProgressFill").style.transform="scaleX("+(hs.length?resolved/hs.length:0)+")";$("#trackerEmpty").hidden=hs.length>0;$("#trackerEmpty").textContent="No habits available for this day.";
+ $("#trackerList").innerHTML=hs.map(h=>{const it=rec?.items[h.id],status=it?.status||"",accent=h.historical?(it?.snapshot?.points?.length>1?SPECIAL_COLOR:D(it?.snapshot?.points?.[0]?.dimensionId)?.color||"#aeb8c7"):habitAccent(h);
+ return '<div class="daily-habit '+(status?"is-"+status:"")+(h.historical?" is-historical":"")+'" style="--habit-accent:'+esc(accent)+';" '+(h.historical?'':'data-open-habit="'+esc(h.id)+'" data-drag-habit="'+esc(h.id)+'"')+' tabindex="0" '+(h.historical?'':'role="link"')+' aria-label="'+esc(titleCase(h.name))+(h.historical?". Historical habit.":". Open statistics. Drag to reorder.")+'">'+(h.historical?'<span class="daily-grip historical-mark">◦</span>':'<span class="daily-grip" draggable="true" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>')+'<span class="daily-habit-name">'+esc(titleCase(h.name))+'</span><div class="status-dots" role="group" aria-label="'+esc(titleCase(h.name))+' status"><button class="status-dot completed '+(status==="completed"?"chosen":"")+'" data-set-status="completed" data-habit="'+esc(h.id)+'" aria-label="Completed" aria-pressed="'+(status==="completed")+'" title="Completed"></button><button class="status-dot mva '+(status==="mva"?"chosen":"")+'" data-set-status="mva" data-habit="'+esc(h.id)+'" aria-label="Minimum viable action" aria-pressed="'+(status==="mva")+'" title="Minimum viable action"></button><button class="status-dot missed '+(status==="missed"?"chosen":"")+'" data-set-status="missed" data-habit="'+esc(h.id)+'" aria-label="Not completed" aria-pressed="'+(status==="missed")+'" title="Not completed"></button></div></div>';}).join("");
 }
 function openHabitStats(id){if(!H(id))return;selectedStatsHabit=id;view="habit-stats";render();window.scrollTo({top:0,behavior:"smooth"})}
 function reorderHabits(fromId,toId){
@@ -265,10 +259,8 @@ function renderHabitSpotlight(){
  const circles=daily.map((d,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(d.value).toFixed(1)+'" r="3.5" class="spotlight-point"><title>'+esc(d.date)+': '+fmt(d.value)+' points · '+esc(d.status)+'</title></circle>').join("");
  host.innerHTML='<svg class="spotlight-svg" viewBox="0 0 '+w+' '+ht+'" role="img" aria-label="Daily points for '+esc(h.name)+'"><line x1="'+p.l+'" y1="'+y(0)+'" x2="'+(w-p.r)+'" y2="'+y(0)+'" class="chart-axis"/><line x1="'+p.l+'" y1="'+y(max/2)+'" x2="'+(w-p.r)+'" y2="'+y(max/2)+'" class="chart-gridline"/><polygon points="'+area+'" class="spotlight-area"/><polyline points="'+pts+'" class="spotlight-line"/>'+circles+'<text x="'+p.l+'" y="'+(ht-8)+'" class="chart-date-label">'+esc(daily[0].date.slice(5))+'</text><text x="'+(w-p.r)+'" y="'+(ht-8)+'" text-anchor="end" class="chart-date-label">'+esc(daily[daily.length-1].date.slice(5))+'</text></svg><div class="spotlight-summary"><strong>'+fmt(daily.reduce((n,v)=>n+v.value,0))+'</strong><span>points in selected period</span><span class="spotlight-record-count">'+daily.length+' recorded '+(daily.length===1?"day":"days")+'</span></div>';
 }
-function renderDailyArchive(){
- const rows=statsRecords().filter(([,r])=>Object.keys(r.items||{}).length).reverse();
- $("#dailyArchive").innerHTML=rows.length?rows.map(([date,record])=>{const count=Object.keys(record.items||{}).length,points=dailyRecordPoints(record),label=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"}).format(new Date(date+"T12:00:00"));return '<div class="archive-row"><span class="archive-date">'+esc(label)+'</span><span class="archive-count">'+count+' '+(count===1?"habit":"habits")+'</span><strong class="archive-points">'+fmt(points)+' <small>pts</small></strong></div>'}).join(""):'<div class="stats-empty">No recorded days in this period.</div>';
-}
+function renderDailyArchive(){const rows=statsRecords().filter(([,r])=>Object.keys(r.items||{}).length).reverse();$("#dailyArchive").innerHTML=rows.length?rows.map(([date,record])=>{const count=Object.keys(record.items||{}).length,points=dailyRecordPoints(record),label=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"}).format(new Date(date+"T12:00:00"));return '<button type="button" class="archive-row" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+'</span><span class="archive-count">'+count+' '+(count===1?"habit":"habits")+'</span><strong class="archive-points">'+fmt(points)+' <small>pts</small></strong><span class="archive-open" aria-hidden="true">↗</span></button>'}).join(""):'<div class="stats-empty">No recorded days in this period.</div>'}
+function openArchiveDay(date){if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!data.records[date])return;selectedDate=date;view="tracker";render();window.scrollTo({top:0,behavior:"smooth"})}
 function renderHabitLeaders(){
  const cats=[["completed","Most Completed","Full completions"],["mva","Most MVAed","Minimum viable actions"],["missed","Most Missed","Recorded misses"]],totals=new Map();
  statsRecords().forEach(([,record])=>Object.entries(record.items||{}).forEach(([id,item])=>{if(!["completed","mva","missed"].includes(item?.status))return;const v=totals.get(id)||{completed:0,mva:0,missed:0,name:item.snapshot?.name||H(id)?.name||"Unknown Habit"};v[item.status]++;totals.set(id,v)}));
@@ -292,8 +284,10 @@ document.addEventListener("click",e=>{
  if(e.target.closest("#sidebarClose")){setSidebarOpen($(".app").classList.contains("sidebar-collapsed"));return}
  const close=e.target.closest("[data-close-library-modal]");if(close){closeHabitModal();return}
  if(e.target===$("#libraryModal")){closeHabitModal();return}
- const back=e.target.closest("[data-back-tracker]");if(back){switchView("tracker");return}
- const stateBtn=e.target.closest("[data-set-status]");if(stateBtn){cycle(stateBtn.dataset.habit,today(),stateBtn.dataset.setStatus);return}
+ const back=e.target.closest("[data-back-tracker]");if(back){selectedDate=today();switchView("tracker");return}
+ const backStats=e.target.closest("[data-back-stats]");if(backStats){switchView("stats");return}
+ const archiveDay=e.target.closest("[data-open-day]");if(archiveDay){openArchiveDay(archiveDay.dataset.openDay);return}
+ const stateBtn=e.target.closest("[data-set-status]");if(stateBtn){cycle(stateBtn.dataset.habit,selectedDate||today(),stateBtn.dataset.setStatus);return}
  const habitRow=e.target.closest("[data-open-habit]");if(habitRow&&!e.target.closest("button,.daily-grip,.status-dots")){openHabitStats(habitRow.dataset.openHabit);return}
  const dimensionRow=e.target.closest("[data-open-dimension]");if(dimensionRow){openDimensionInLibrary(dimensionRow.dataset.openDimension);return}
  const nav=e.target.closest("[data-view]");if(nav){switchView(nav.dataset.view);return}
@@ -338,5 +332,5 @@ document.addEventListener("keydown",e=>{
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();dataFolder?saveFolder():exportData()}});
 render();
 try{if(localStorage.getItem("habitRadarSidebarOpen")==="0")setSidebarOpen(false)}catch(e){}
-let lastDay=today();setInterval(()=>{if(view==="tracker"){const now=new Date(),day=today();$("#liveClock").innerHTML=clockMarkup(now);if(day!==lastDay){lastDay=day;renderTracker()}}},1000);
+let lastDay=today();setInterval(()=>{if(view==="tracker"&&selectedDate===today()){const now=new Date(),day=today();$("#liveClock").innerHTML=clockMarkup(now);if(day!==lastDay){lastDay=day;renderTracker()}}},1000);
 })();
