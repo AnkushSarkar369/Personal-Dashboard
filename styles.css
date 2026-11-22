@@ -303,10 +303,6 @@
   opacity:1;
   transform:scale(1.58);
  }
- .status-dots:has(.status-dot:hover) .status-dot:not(:hover){
-  opacity:.78;
-  transform:scale(1.16);
- }
 }
 .status-dots{
  position:relative;
@@ -345,5 +341,5 @@
 }
 @media(prefers-reduced-motion:reduce){
  .daily-habit,.status-dot{transition:none!important;will-change:auto}
- .daily-habit:hover:not(.dragging),.status-dot:hover,.status-dots:has(.status-dot:hover) .status-dot:not(:hover){transform:none}
+ .daily-habit:hover:not(.dragging),.status-dot:hover{transform:none}
 }
