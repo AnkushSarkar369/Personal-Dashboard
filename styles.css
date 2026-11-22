@@ -642,7 +642,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 .star-twinkle-b{animation-duration:6.1s;animation-delay:-2.4s}
 .star-twinkle-c{animation-duration:7.4s;animation-delay:-4.1s}
 @keyframes star-group{from{opacity:.12}to{opacity:.68}}
-.daily-header{position:relative;align-items:flex-end;padding-bottom:24px;margin-bottom:13px}
+.daily-header{position:relative;display:flex;flex-direction:row;align-items:flex-end;justify-content:space-between;text-align:left;padding-bottom:24px;margin-bottom:13px}
 .daily-header:after{content:"";position:absolute;left:50%;bottom:-3px;width:6px;height:6px;border:1px solid rgba(180,154,255,.55);background:var(--bg);transform:translateX(-50%) rotate(45deg)}
 .daily-header h2{display:grid;gap:2px;margin:0;font-family:var(--font-serif);font-size:var(--fs-display);font-weight:400;line-height:1.1;letter-spacing:-.01em}
 .date-weekday{font-size:.58em;font-style:italic;color:#c7b7ff;line-height:1.15}
