@@ -3,23 +3,31 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b0d12"><title>Habit Radar</title>
-<link rel="stylesheet" href="styles.css?v=20261122-5">
+<link rel="stylesheet" href="styles.css?v=20261122-6">
 </head>
 <body>
+<svg class="icon-library" aria-hidden="true" focusable="false">
+  <symbol id="icon-overview" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.25"/><circle cx="12" cy="12" r="2.25"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></symbol>
+  <symbol id="icon-tracker" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 2.3 2.3L16.5 8"/></symbol>
+  <symbol id="icon-library" viewBox="0 0 24 24"><path d="M5 4.5h5.6c1 0 1.8.8 1.8 1.8v13.2c0-1-.8-1.8-1.8-1.8H5zM19 4.5h-5.6c-1 0-1.8.8-1.8 1.8v13.2c0-1 .8-1.8 1.8-1.8H19z"/></symbol>
+  <symbol id="icon-stats" viewBox="0 0 24 24"><path d="M4 19.5h16M6.5 16V10M12 16V5.5M17.5 16v-8"/></symbol>
+  <symbol id="icon-settings" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+</svg>
 <div class="app">
 <aside class="sidebar">
   <button class="sidebar-close" id="sidebarClose" type="button" aria-label="Close sidebar" title="Close Sidebar">‹</button>
   <a class="brand" href="#"><span class="brand-icon">◈</span><span>Habit<span class="brand-muted"> Radar</span></span></a>
   
   <nav class="navigation">
-    <button class="nav-item active" data-view="overview"><span>◉</span>Overview</button>
-    <button class="nav-item" data-view="tracker"><span>☷</span>Daily Tracker</button>
-    <button class="nav-item" data-view="library"><span>▦</span>Habit Library</button>
-    <button class="nav-item" data-view="stats"><span>⌁</span>Statistics</button>
+    <button class="nav-item active" data-view="overview"><svg class="nav-icon" aria-hidden="true"><use href="#icon-overview"></use></svg>Overview</button>
+    <button class="nav-item" data-view="tracker"><svg class="nav-icon" aria-hidden="true"><use href="#icon-tracker"></use></svg>Daily Tracker</button>
+    <button class="nav-item" data-view="library"><svg class="nav-icon" aria-hidden="true"><use href="#icon-library"></use></svg>Habit Library</button>
+    <button class="nav-item" data-view="stats"><svg class="nav-icon" aria-hidden="true"><use href="#icon-stats"></use></svg>Statistics</button>
+    <button class="nav-item nav-settings-mobile" data-view="settings"><svg class="nav-icon" aria-hidden="true"><use href="#icon-settings"></use></svg>Settings</button>
   </nav>
   <div class="sidebar-bottom">
     <div class="storage-status" hidden><i id="storageDot"></i><span id="storageText">Saved In This Browser</span></div>
-    <button class="nav-item" data-view="settings"><span>⚙</span>Settings & Data</button>
+    <button class="nav-item nav-settings-desktop" data-view="settings"><svg class="nav-icon" aria-hidden="true"><use href="#icon-settings"></use></svg>Settings & Data</button>
   </div>
 </aside>
 <button class="sidebar-reopen" id="sidebarReopen" type="button" aria-label="Open sidebar" title="Open Sidebar">›</button>
@@ -31,16 +39,20 @@
 
 <section class="view active" id="view-overview">
   <div class="character-screen">
-    <div class="character-topline"><div class="segmented" data-period-control><button class="selected" data-period="1m">1M</button><button data-period="3m">3M</button><button data-period="all">All Time</button></div></div>
+    <div class="character-topline"><div class="character-masthead"><div class="character-date" id="overviewDate"><span class="character-weekday">—</span><span class="character-date-rest">—</span></div><div class="character-kicker"><span>OVERVIEW</span><i></i><span id="overviewPeriodLabel">LAST 30 DAYS</span></div></div><div class="segmented" data-period-control><button class="selected" data-period="1m">1M</button><button data-period="3m">3M</button><button data-period="all">All Time</button></div></div>
     <div class="radar-stage"><svg id="radar" viewBox="0 0 900 660" role="img" aria-label="Living Character Progression Radar"></svg></div>
   </div>
 </section>
 
 <section class="view" id="view-tracker">
   <div class="daily-screen">
-    <header class="daily-header"><h2 id="liveDate">Today</h2><div class="live-clock" id="liveClock">12:00:00 PM IST</div></header>
+    <header class="daily-header"><h2 id="liveDate">Today</h2><div class="live-clock" id="liveClock"><span class="clock-digits">12:00:00 PM</span><span class="clock-zone">IST</span></div></header>
+    <div class="daily-progress" id="dailyProgress" aria-label="Daily activity progress">
+      <div class="daily-progress-meta"><span>Today's activity</span><span class="num" id="todayProgressLabel">0 / 0 resolved</span></div>
+      <div class="daily-progress-track"><i id="todayProgressFill"></i></div>
+    </div>
     <div id="trackerList" class="tracker-list"></div>
-    <div class="daily-empty" id="trackerEmpty" hidden>No Active Habits. Configure Your Habits In The Library.</div>
+    <div class="daily-empty" id="trackerEmpty" hidden>No active habits. Configure your habits in the Library.</div>
   </div>
 </section>
 
@@ -48,7 +60,7 @@
   <div class="habit-stats-screen">
     <div class="habit-stats-back"><button class="secondary-button" data-back-tracker>← Back To Daily Tracker</button></div>
     <div class="section-heading habit-stats-heading">
-      <div><div class="eyebrow">Habit Statistics</div><h2 id="habitStatsName">Habit</h2><p id="habitStatsDescription" class="muted">Your Activity And Progress Over Time.</p></div>
+      <div><div class="eyebrow">Habit Statistics</div><h2 id="habitStatsName">Habit</h2><p id="habitStatsDescription" class="muted">Your activity and progress over time.</p></div>
       <div class="segmented large" data-period-control><button class="selected" data-period="1m">1 Month</button><button data-period="3m">3 Months</button><button data-period="all">All Time</button></div>
     </div>
     <div id="habitStatsCards" class="stats-cards"></div>
@@ -76,15 +88,15 @@
   <div class="settings-screen">
     <div class="section-heading settings-heading"><div><h2>Settings & Data</h2><p class="muted">Scoring, storage, backups and reset controls.</p></div></div>
     <div class="settings-grid">
-    <article class="panel settings-card"><div class="eyebrow">Scoring</div><h3>Minimum Viable Action</h3><div class="setting-row"><label for="mvaRange">Global MVA Multiplier</label><strong id="mvaValue">0.25×</strong></div><input type="range" id="mvaRange" min=".1" max=".5" step=".05" value=".25"><div class="range-label"><span>0.10×</span><span>0.50×</span></div><p class="muted">Applies To Future Activity Only. Existing Records Keep Their Original Multiplier.</p><div class="setting-row"><label for="defaultBenchmark">Default Benchmark</label><input id="defaultBenchmark" type="number" min="1" step="100" value="1000"></div></article>
-    <article class="panel settings-card"><div class="eyebrow">Portable Storage</div><h3>Data Location</h3><p class="muted">The App Saves In Browser Storage Automatically. On Supported Desktop Browsers, Connect A Folder To Also Write A JSON File There.</p><button class="secondary-button" id="chooseFolder">Choose Data Folder</button><div id="storageDetail" class="storage-detail">No External Folder Connected.</div><button class="secondary-button" id="saveNow">Save Now / Export</button></article>
-    <article class="panel settings-card"><div class="eyebrow">Backup & Restore</div><h3>Your Data, Portable</h3><p class="muted">Export Or Restore Dimensions, Habits, Active States And Historical Records.</p><div class="button-row"><button class="secondary-button" id="exportData">Export JSON</button><label class="secondary-button file-button">Import JSON<input type="file" id="importData" accept=".json,application/json" hidden></label></div></article>
-    <article class="panel settings-card danger-card"><div class="eyebrow">Reset</div><h3>Reset Sample / Personal Data</h3><p class="muted">This Clears The Current Setup And Restores The Original Sample Workspace.</p><button class="danger-button" id="resetData">Restore Sample Data</button></article>
+    <article class="panel settings-card"><div class="eyebrow">Scoring</div><h3>Minimum Viable Action</h3><div class="setting-row"><label for="mvaRange">Global MVA Multiplier</label><strong id="mvaValue">0.25×</strong></div><input type="range" id="mvaRange" min=".1" max=".5" step=".05" value=".25"><div class="range-label"><span>0.10×</span><span>0.50×</span></div><p class="muted">Applies to future activity only. Existing records keep their original multiplier.</p><div class="setting-row"><label for="defaultBenchmark">Default Benchmark</label><input id="defaultBenchmark" type="number" min="1" step="100" value="1000"></div></article>
+    <article class="panel settings-card"><div class="eyebrow">Portable Storage</div><h3>Data Location</h3><p class="muted">The app saves in browser storage automatically. On supported desktop browsers, connect a folder to also write a JSON file there.</p><button class="secondary-button" id="chooseFolder">Choose Data Folder</button><div id="storageDetail" class="storage-detail">No external folder connected.</div><button class="secondary-button" id="saveNow">Save Now / Export</button></article>
+    <article class="panel settings-card"><div class="eyebrow">Backup & Restore</div><h3>Your Data, Portable</h3><p class="muted">Export or restore dimensions, habits, active states and historical records.</p><div class="button-row"><button class="secondary-button" id="exportData">Export JSON</button><label class="secondary-button file-button">Import JSON<input type="file" id="importData" accept=".json,application/json" hidden></label></div></article>
+    <article class="panel settings-card danger-card"><div class="eyebrow">Reset</div><h3>Reset Sample / Personal Data</h3><p class="muted">This clears the current setup and restores the original sample workspace.</p><button class="danger-button" id="resetData">Restore Sample Data</button></article>
     </div>
   </div>
 </section>
 </main></div>
 <div class="library-modal" id="libraryModal" hidden></div>
 <div class="toast" id="toast" role="status"></div>
-<script src="app.js?v=20261122-5"></script>
+<script src="app.js?v=20261122-6"></script>
 </body></html>
