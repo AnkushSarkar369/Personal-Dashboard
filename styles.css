@@ -94,18 +94,12 @@
 .main:has(#view-overview.active) .character-screen:before{inset:8% 10%;background:radial-gradient(ellipse at 50% 50%,rgba(137,111,211,.15),transparent 58%);filter:blur(28px)}
 .star-field{pointer-events:none}
 .star{fill:#dce6ff;filter:drop-shadow(0 0 2px rgba(197,215,255,.6));animation:star-twinkle var(--twinkle,4s) ease-in-out infinite alternate}
-.star-spark{fill:none;stroke:#d8ccff;stroke-width:1.1;stroke-linecap:round;opacity:.32;filter:url(#starGlow);animation:spark-twinkle 4.8s ease-in-out infinite alternate}
-.radar-personality-ring{fill:none;stroke-width:1.1;opacity:.68;filter:drop-shadow(0 0 4px currentColor);transform-box:fill-box;transform-origin:center;animation:ring-drift 11s linear infinite}
 .radar-node-glow{opacity:.32;filter:blur(10px);animation:node-pulse 3.6s ease-in-out infinite alternate}
 .radar-node{stroke:#0b0d12;stroke-width:2;filter:drop-shadow(0 0 7px currentColor)}
 .radar-point{stroke:#f1eaff;stroke-width:1;opacity:.96}
 .radar-label{font-size:17px;font-weight:760;letter-spacing:.2px;paint-order:stroke;stroke:#0b0d12;stroke-width:4px;stroke-linejoin:round;filter:drop-shadow(0 0 8px currentColor)}
 .radar-value{font-size:12px;font-weight:650;fill:#b7c0d0;letter-spacing:.35px;paint-order:stroke;stroke:#0b0d12;stroke-width:3px}
-.radar-core-halo{fill:none;stroke:#d4c4ff;stroke-width:1;opacity:.28;filter:drop-shadow(0 0 8px #b49aff);animation:core-pulse 3.8s ease-in-out infinite}
 @keyframes star-twinkle{0%{opacity:.10}100%{opacity:.72}}
-@keyframes spark-twinkle{0%{opacity:.10;transform:scale(.7)}100%{opacity:.62;transform:scale(1.12)}}
-@keyframes ring-drift{to{transform:rotate(360deg)}}
-@keyframes core-pulse{0%,100%{opacity:.16;transform:scale(.85)}50%{opacity:.48;transform:scale(1.2)}}
 @media(max-width:700px){
  .app:has(#view-overview.active){height:100svh;min-height:0}
  .main:has(#view-overview.active){height:calc(100svh - 64px);min-height:0;padding:8px 8px 0}
@@ -117,7 +111,60 @@
  .radar-value{font-size:14px}
 }
 @media(prefers-reduced-motion:reduce){
- .star,.star-spark,.radar-personality-ring,.radar-core-halo{animation:none!important}
+ .star{animation:none!important}
 }
 
 .storage-status[hidden]{display:none!important}
+
+
+/* Quiet, typographic radar finish: fixed star positions, brightness-only twinkle. */
+.star{
+ fill:#dce6ff;
+ transform:none!important;
+ filter:drop-shadow(0 0 2px rgba(197,215,255,.55));
+ animation:star-twinkle var(--twinkle,4s) ease-in-out infinite alternate;
+ will-change:opacity;
+}
+@keyframes star-twinkle{
+ from{opacity:.08}
+ to{opacity:var(--star-peak,.58)}
+}
+.radar-node-glow{
+ opacity:.27;
+ filter:blur(11px);
+ animation:none!important;
+}
+.radar-node{
+ stroke:#0b0d12;
+ stroke-width:2;
+ filter:drop-shadow(0 0 6px rgba(190,174,255,.32));
+}
+.radar-label{
+ font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+ font-size:14px;
+ font-weight:500;
+ letter-spacing:1.5px;
+ fill:#d9deea;
+ paint-order:stroke;
+ stroke:#0b0d12;
+ stroke-width:4px;
+ stroke-linejoin:round;
+ filter:none;
+}
+.radar-value{
+ font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+ font-size:11px;
+ font-weight:550;
+ letter-spacing:.45px;
+ fill:#a9b2c2;
+ paint-order:stroke;
+ stroke:#0b0d12;
+ stroke-width:3px;
+}
+@media(max-width:700px){
+ .radar-label{font-size:12px;letter-spacing:1.05px}
+ .radar-value{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){
+ .star{animation:none!important}
+}
