@@ -41,8 +41,8 @@ function render(){const labels={overview:["YOUR CHARACTER","Overview"],tracker:[
 function renderOverview(){const ds=data.dimensions.filter(d=>!d.archived);drawRadar(ds,period);}
 function drawRadar(ds,range){
  const svg=$("#radar"),cx=500,cy=380,r=230,n=ds.length;
- if(!n){svg.setAttribute("viewBox","0 0 1000 760");svg.innerHTML='<text x="500" y="380" text-anchor="middle" fill="#8993a2" font-size="18">Create your first life dimension</text>';return}
- svg.setAttribute("viewBox","0 0 1000 760");
+ if(!n){svg.setAttribute("viewBox","0 0 1000 760");svg.setAttribute("preserveAspectRatio","xMidYMid meet");svg.innerHTML='<text x="500" y="380" text-anchor="middle" fill="#8993a2" font-size="18">Create your first life dimension</text>';return}
+ svg.setAttribute("viewBox","0 0 1000 760");svg.setAttribute("preserveAspectRatio","xMidYMid meet");
  const vals=ds.map(d=>rawPoints(d.id,range)),max=Math.max(25,...vals)*1.18;
  const xy=(i,k)=>{const a=-Math.PI/2+i*2*Math.PI/n;return[cx+Math.cos(a)*r*k,cy+Math.sin(a)*r*k]};
  let defs='<defs><radialGradient id="coreGlow"><stop offset="0" stop-color="#ffffff" stop-opacity=".18"/><stop offset=".55" stop-color="#a88cff" stop-opacity=".07"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient><linearGradient id="radarFill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4a8ff" stop-opacity=".25"/><stop offset=".5" stop-color="#75e8ce" stop-opacity=".10"/><stop offset="1" stop-color="#72a8ff" stop-opacity=".18"/></linearGradient><filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="starGlow" x="-300%" y="-300%" width="700%" height="700%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
