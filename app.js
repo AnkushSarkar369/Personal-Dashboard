@@ -61,6 +61,7 @@ function applyTitleCase(){
  while(walker.nextNode())if(walker.currentNode.nodeValue.trim())nodes.push(walker.currentNode);
  nodes.forEach(node=>{if(!node.parentElement.closest("script,style,[data-dimension-name]"))node.nodeValue=titleCase(node.nodeValue)});
  document.querySelectorAll("[title],[aria-label],[placeholder]").forEach(el=>{
+  if(el.matches("[data-open-dimension],[data-edit-dimension],[data-modal-points]"))return;
   ["title","aria-label","placeholder"].forEach(attr=>{if(el.hasAttribute(attr))el.setAttribute(attr,titleCase(el.getAttribute(attr)))});
  });
 }
@@ -243,8 +244,8 @@ function renderStats(){
 }
 function openDimensionInLibrary(id){
  const d=D(id);if(!d)return;
- switchView("library");
- const card=$("[data-dimension-card]").find(el=>el.dataset.dimensionCard===id);
+ view="library";render();
+ const card=Array.from(document.querySelectorAll("[data-dimension-card]")).find(el=>el.dataset.dimensionCard===id);
  if(card){card.classList.add("dimension-card-focus");card.scrollIntoView({behavior:"smooth",block:"center"});}
 }
 function renderSettings(){$("#mvaRange").value=data.settings.mva;$("#mvaValue").textContent=Number(data.settings.mva).toFixed(2)+"×";$("#defaultBenchmark").value=data.settings.defaultBenchmark;$("#storageDetail").textContent=dataFolder?"Connected Folder. Automatic JSON Backup Is Enabled.":"Browser Storage Is Active. Folder-Based Saving Is Optional And Only Available In Supported Browsers."}
