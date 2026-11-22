@@ -24,7 +24,7 @@
 <main class="main">
 <header class="topbar">
   <div><div class="eyebrow" id="pageEyebrow">Your Character</div><h1 id="pageTitle">Overview</h1></div>
-  <div class="topbar-right"><span id="todayLabel"></span><button class="icon-button" id="quickAdd" title="Create A Habit" hidden>＋</button><span class="avatar">A</span></div>
+  <div class="topbar-right"><span id="todayLabel"></span><span class="avatar">A</span></div>
 </header>
 
 <section class="view active" id="view-overview">
@@ -55,26 +55,11 @@
 </section>
 
 <section class="view" id="view-library">
-  <div id="libraryLegacy" hidden>
-  <div class="section-heading"><div><div class="eyebrow">Your System</div><h2>Habit Library</h2><p class="muted">Organise Dimensions, Pools And Habits. Enable Only What You Want Active.</p></div><button class="primary-button" id="newHabit">＋ New Habit</button></div>
-  <div class="library-layout">
-    <aside class="panel library-sidebar">
-      <div class="panel-heading"><h3>Dimensions</h3><button class="icon-button small-icon" id="addDimension" title="Add Dimension">＋</button></div>
-      <div id="dimensionManager" class="dimension-manager"></div>
-      <div class="library-divider"></div>
-      <div class="panel-heading"><h3>Habit Pools</h3><button class="icon-button small-icon" id="addPool" title="Add Pool">＋</button></div>
-      <div id="poolManager" class="pool-manager"></div>
-    </aside>
-    <div class="panel habit-browser">
-      <div class="panel-heading"><div><div class="eyebrow">Selected Pool</div><h3 id="selectedPoolName">Health</h3></div><div class="pool-tools"><span class="count-label" id="poolCount"></span><button class="subtle-button" id="renamePool">Rename</button></div></div>
-      <div id="habitList" class="habit-list"></div>
-    </div>
-    <aside class="panel config-panel">
-      <div class="config-heading"><div><div class="eyebrow">Habit Configuration</div><h3 id="configTitle">Select A Habit</h3></div><span class="config-mark">◈</span></div>
-      <div id="configContent" class="config-content"><div class="config-empty">Select A Habit From The List To Configure Its Details And Dimension Contributions.</div></div>
-    </aside>
+  <div class="section-heading library-heading">
+    <div><div class="eyebrow">Your System</div><h2>Habit Library</h2><p class="muted">Your habits, organised by dimension. Lock a habit when it leaves your current season.</p></div>
+    <button class="primary-button" id="addHabit">＋ Add Habit</button>
   </div>
-  </div>
+  <div id="dimensionCards" class="dimension-grid"></div>
 </section>
 
 <section class="view" id="view-stats">
@@ -88,11 +73,12 @@
   <div class="settings-grid">
     <article class="panel settings-card"><div class="eyebrow">Scoring</div><h3>Minimum Viable Action</h3><div class="setting-row"><label for="mvaRange">Global MVA Multiplier</label><strong id="mvaValue">0.25×</strong></div><input type="range" id="mvaRange" min=".1" max=".5" step=".05" value=".25"><div class="range-label"><span>0.10×</span><span>0.50×</span></div><p class="muted">Applies To Future Activity Only. Existing Records Keep Their Original Multiplier.</p><div class="setting-row"><label for="defaultBenchmark">Default Benchmark</label><input id="defaultBenchmark" type="number" min="1" step="100" value="1000"></div></article>
     <article class="panel settings-card"><div class="eyebrow">Portable Storage</div><h3>Data Location</h3><p class="muted">The App Saves In Browser Storage Automatically. On Supported Desktop Browsers, Connect A Folder To Also Write A JSON File There.</p><button class="secondary-button" id="chooseFolder">Choose Data Folder</button><div id="storageDetail" class="storage-detail">No External Folder Connected.</div><button class="secondary-button" id="saveNow">Save Now / Export</button></article>
-    <article class="panel settings-card"><div class="eyebrow">Backup & Restore</div><h3>Your Data, Portable</h3><p class="muted">Export Or Restore Dimensions, Pools, Habits, Active States And Historical Records.</p><div class="button-row"><button class="secondary-button" id="exportData">Export JSON</button><label class="secondary-button file-button">Import JSON<input type="file" id="importData" accept=".json,application/json" hidden></label></div></article>
+    <article class="panel settings-card"><div class="eyebrow">Backup & Restore</div><h3>Your Data, Portable</h3><p class="muted">Export Or Restore Dimensions, Habits, Active States And Historical Records.</p><div class="button-row"><button class="secondary-button" id="exportData">Export JSON</button><label class="secondary-button file-button">Import JSON<input type="file" id="importData" accept=".json,application/json" hidden></label></div></article>
     <article class="panel settings-card danger-card"><div class="eyebrow">Reset</div><h3>Reset Sample / Personal Data</h3><p class="muted">This Clears The Current Setup And Restores The Original Sample Workspace.</p><button class="danger-button" id="resetData">Restore Sample Data</button></article>
   </div>
 </section>
 </main></div>
+<div class="library-modal" id="libraryModal" hidden></div>
 <div class="toast" id="toast" role="status"></div>
 <script src="app.js"></script>
 </body></html>
