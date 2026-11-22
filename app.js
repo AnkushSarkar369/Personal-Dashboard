@@ -95,8 +95,8 @@ function renderTracker(){
  $("#trackerEmpty").hidden=hs.length>0;
  $("#trackerList").innerHTML=hs.map(h=>{
   const it=rec?.items[h.id],status=it?.status||"";
-  return '<div class="daily-habit '+(status==="completed"?"is-completed":"")+'" data-open-habit="'+h.id+'" data-drag-habit="'+h.id+'" draggable="true" tabindex="0" role="link" aria-label="Open '+esc(titleCase(h.name))+' Statistics. Drag To Reorder.">'+
-   '<span class="daily-grip" title="Drag To Reorder" aria-hidden="true">⠿</span>'+
+  return '<div class="daily-habit '+(status==="completed"?"is-completed":"")+'" data-open-habit="'+h.id+'" data-drag-habit="'+h.id+'" tabindex="0" role="link" aria-label="Open '+esc(titleCase(h.name))+' Statistics. Drag To Reorder.">'+
+   '<span class="daily-grip" draggable="true" title="Drag To Reorder" aria-hidden="true">⠿</span>'+
    '<span class="daily-habit-name">'+esc(titleCase(h.name))+'</span>'+
    '<div class="status-dots" role="group" aria-label="'+esc(titleCase(h.name))+' Status">'+
     '<button class="status-dot completed '+(status==="completed"?"chosen":"")+'" data-set-status="completed" data-habit="'+h.id+'" aria-label="Completed" title="Completed"></button>'+
@@ -158,7 +158,7 @@ document.addEventListener("dragstart",e=>{const row=e.target.closest("[data-drag
 document.addEventListener("dragover",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!draggedHabitId)return;e.preventDefault();$(".daily-habit.drop-target").forEach(x=>x.classList.remove("drop-target"));if(row.dataset.dragHabit!==draggedHabitId)row.classList.add("drop-target")});
 document.addEventListener("drop",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!draggedHabitId)return;e.preventDefault();reorderHabits(draggedHabitId,row.dataset.dragHabit);draggedHabitId=null;$(".daily-habit").forEach(x=>x.classList.remove("dragging","drop-target"))});
 document.addEventListener("dragend",()=>{draggedHabitId=null;$(".daily-habit").forEach(x=>x.classList.remove("dragging","drop-target"))});
-document.addEventListener("keydown",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!e.altKey||!["ArrowUp","ArrowDown"].includes(e.key))return;e.preventDefault();const list=activeHabits(),i=list.findIndex(h=>h.id===row.dataset.dragHabit),next=i+(e.key==="ArrowUp"?-1:1);if(next>=0&&next<list.length)reorderHabits(row.dataset.dragHabit,list[next].id)});
+document.addEventListener("keydown",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||e.target.closest("button"))return;if(e.key==="Enter"){e.preventDefault();openHabitStats(row.dataset.openHabit);return}if(!e.altKey||!["ArrowUp","ArrowDown"].includes(e.key))return;e.preventDefault();const list=activeHabits(),i=list.findIndex(h=>h.id===row.dataset.dragHabit),next=i+(e.key==="ArrowUp"?-1:1);if(next>=0&&next<list.length)reorderHabits(row.dataset.dragHabit,list[next].id)});
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();dataFolder?saveFolder():exportData()}});
 render();
 let lastDay=today();setInterval(()=>{if(view==="tracker"){const now=new Date(),day=today();$("#liveClock").textContent=now.toLocaleTimeString(undefined,{hour12:false});if(day!==lastDay){lastDay=day;renderTracker()}}},1000);
