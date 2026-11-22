@@ -268,3 +268,82 @@
 @media(prefers-reduced-motion:reduce){
  .daily-habit.is-completed .daily-habit-name:after{animation:none;transform:scaleX(1)}
 }
+
+
+/* Daily Tracker Interaction Polish */
+@media (hover:hover) and (pointer:fine){
+ .daily-habit{
+  position:relative;
+  transform:translateY(0) scale(1);
+  transform-origin:center;
+  transition:
+   transform 240ms cubic-bezier(.2,.8,.2,1),
+   background-color 220ms ease,
+   border-color 220ms ease,
+   box-shadow 240ms ease;
+  will-change:transform;
+ }
+ .daily-habit:hover:not(.dragging){
+  z-index:2;
+  transform:translateY(-2px) scale(1.008);
+  background:rgba(255,255,255,.035);
+  border-color:rgba(180,154,255,.18);
+  box-shadow:0 8px 24px rgba(0,0,0,.16);
+ }
+ .status-dot{
+  transition:
+   transform 240ms cubic-bezier(.2,.8,.2,1),
+   opacity 200ms ease,
+   box-shadow 240ms ease;
+  transform-origin:center;
+  will-change:transform;
+ }
+ .status-dot:hover{
+  z-index:3;
+  opacity:1;
+  transform:scale(1.58);
+ }
+ .status-dots:has(.status-dot:hover) .status-dot:not(:hover){
+  opacity:.78;
+  transform:scale(1.16);
+ }
+}
+.status-dots{
+ position:relative;
+ z-index:3;
+ display:flex;
+ align-items:center;
+ justify-content:space-around;
+ gap:12px;
+ min-width:132px;
+ min-height:44px;
+ padding:10px 14px;
+ margin:-9px -10px -9px auto;
+ border-radius:13px;
+}
+.status-dot{
+ width:14px;
+ height:14px;
+ position:relative;
+ flex:none;
+}
+.status-dot:before{
+ content:"";
+ position:absolute;
+ inset:-9px;
+ border-radius:50%;
+ background:transparent;
+}
+.daily-habit .status-dots{cursor:default}
+.daily-habit .status-dots button{cursor:pointer}
+.daily-habit.dragging{will-change:opacity}
+@media(hover:none),(pointer:coarse){
+ .daily-habit{transition:background-color 180ms ease,border-color 180ms ease}
+ .status-dots{min-width:144px;min-height:48px;padding:12px 16px}
+ .status-dot{width:16px;height:16px}
+ .status-dot:before{inset:-7px}
+}
+@media(prefers-reduced-motion:reduce){
+ .daily-habit,.status-dot{transition:none!important;will-change:auto}
+ .daily-habit:hover:not(.dragging),.status-dot:hover,.status-dots:has(.status-dot:hover) .status-dot:not(:hover){transform:none}
+}
