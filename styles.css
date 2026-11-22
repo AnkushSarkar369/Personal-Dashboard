@@ -343,3 +343,8 @@
  .daily-habit,.status-dot{transition:none!important;will-change:auto}
  .daily-habit:hover:not(.dragging),.status-dot:hover{transform:none}
 }
+
+
+/* Dimension identity is carried into every dimension-level summary. */
+.dimension-table-label{display:inline-flex;align-items:center;gap:8px;color:#d9deea}
+.dimension-table-label i{width:7px;height:7px;flex:none;border-radius:50%;background:var(--dimension-accent);box-shadow:0 0 9px color-mix(in srgb,var(--dimension-accent) 55%,transparent)}
