@@ -166,6 +166,3 @@
 }
 
 
-/* Consistent Title Case Across The Interface */
-body{ text-transform:capitalize }
-.brand,.brand span{ text-transform:capitalize }
