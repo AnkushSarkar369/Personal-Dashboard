@@ -242,7 +242,7 @@ function submitHabitModal(e){
 }
 function toggleHabit(id){const h=H(id);if(!h)return;h.active=!(h.active&&!h.archived);h.archived=false;lastTouchedHabitId=id;save();toast(h.active?"Habit activated.":"Habit made inactive.")}
 
-function statsDateRange(){const end=new Date(today()+"T12:00:00"),start=new Date(end);if(period==="1m")start.setDate(start.getDate()-29);else if(period==="3m")start.setDate(start.getDate()-89);else start.setTime(0);return {start,end}}
+function statsDateRange(){const end=new Date(today()+"T12:00:00"),start=new Date(end);if(period==="1m")start.setDate(start.getDate()-29);else if(period==="3m")start.setDate(start.getDate()-89);else{const dates=Object.keys(data.records||{}).filter(d=>/^\\d{4}-\\d{2}-\\d{2}$/.test(d)).sort();if(dates.length)start.setTime(new Date(dates[0]+"T12:00:00").getTime())}return {start,end}}
 function inStatsRange(date){const {start,end}=statsDateRange(),dt=new Date(date+"T12:00:00");return !Number.isNaN(dt.getTime())&&dt>=start&&dt<=end}
 function statsRecords(){return Object.entries(data.records||{}).filter(([date])=>inStatsRange(date)).sort((a,b)=>a[0].localeCompare(b[0]))}
 function dailyRecordPoints(record){return Object.values(record?.items||{}).reduce((sum,item)=>sum+(item?.snapshot?pointsFor(item.snapshot,item.status):0),0)}
