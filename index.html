@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b0d12"><title>Habit Radar</title>
-<link rel="stylesheet" href="styles.css?v=20261122-11">
+<link rel="stylesheet" href="styles.css?v=20261122-12">
 </head>
 <body>
 <svg class="icon-library" aria-hidden="true" focusable="false">
@@ -69,7 +69,7 @@
 </section>
 
 <section class="view" id="view-library">
-  <div class="library-intro"><div class="library-counts" id="libraryCounts"></div><p class="library-quote">“We are what we repeatedly do. Excellence, then, is not an act, but a habit.”</p></div>
+  <div class="library-intro"><div class="library-kicker"><span>THE PRACTICE INDEX</span><span>VOL. 01 <i>—</i> PERSONAL SYSTEM</span></div><div class="library-title-row"><div class="library-title-lockup"><span class="library-title-mark">◈ &nbsp; FIELD GUIDE</span><h2>Habit Library</h2></div><div class="library-counts" id="libraryCounts"></div></div><div class="library-intro-rule"><span>BUILD THE REPETITION</span><i></i><span>REFINE THE SYSTEM</span></div><p class="library-quote">“We are what we repeatedly do. Excellence, then, is not an act, but a habit.”</p></div>
   <div id="dimensionCards" class="dimension-grid"></div>
 </section>
 
@@ -77,10 +77,10 @@
   <div class="stats-screen">
     <div class="stats-toolbar"><div class="segmented large" data-period-control><button class="selected" data-period="1m">1M</button><button data-period="3m">3M</button><button data-period="all">All Time</button></div></div>
     <div class="stats-quadrants">
-      <article class="panel stats-quadrant"><div class="stats-panel-heading"><div class="eyebrow">WEEKLY DISTRIBUTION</div><h3>When You Show Up</h3></div><div id="weeklyChart" class="weekly-chart"></div></article>
-      <article class="panel stats-quadrant"><div class="stats-panel-heading"><div class="eyebrow">HABIT SPOTLIGHT</div><h3 id="spotlightName">Habit History</h3></div><div id="spotlightChart" class="spotlight-chart"></div></article>
-      <article class="panel stats-quadrant"><div class="stats-panel-heading"><div class="eyebrow">DAILY ARCHIVE</div><h3>Recorded Days</h3></div><div id="dailyArchive" class="daily-archive"></div></article>
-      <article class="panel stats-quadrant"><div class="stats-panel-heading"><div class="eyebrow">HABIT LEADERS</div><h3>Consistency at a Glance</h3></div><div id="habitLeaders" class="habit-leaders"></div></article>
+      <article class="panel stats-quadrant quadrant-weekday"><div class="stats-panel-heading"><div class="eyebrow">WEEKLY DISTRIBUTION</div><h3>When You Show Up</h3></div><div id="weeklyChart" class="weekly-chart"></div></article>
+      <article class="panel stats-quadrant quadrant-graph"><div class="stats-panel-heading"><div class="eyebrow">HABIT SPOTLIGHT</div><h3 id="spotlightName">Habit History</h3></div><div id="spotlightChart" class="spotlight-chart"></div></article>
+      <article class="panel stats-quadrant quadrant-archive"><div class="stats-panel-heading"><div class="eyebrow">DAILY ARCHIVE</div><h3>Recorded Days</h3></div><div id="dailyArchive" class="daily-archive"></div></article>
+      <article class="panel stats-quadrant quadrant-leaders"><div class="stats-panel-heading"><div class="eyebrow">HABIT LEADERS</div><h3>Consistency at a Glance</h3></div><div id="habitLeaders" class="habit-leaders"></div></article>
     </div>
   </div>
 </section>
@@ -99,5 +99,5 @@
 </main></div>
 <div class="library-modal" id="libraryModal" hidden></div>
 <div class="toast" id="toast" role="status"></div>
-<script src="app.js?v=20261122-11"></script>
+<script src="app.js?v=20261122-12"></script>
 </body></html>
