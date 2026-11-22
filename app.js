@@ -37,7 +37,7 @@ function cycle(id,date,status){const h=H(id);if(!h)return;const rec=data.records
 function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:00"),start=new Date(now);if(range==="1m")start.setDate(start.getDate()-29);if(range==="3m")start.setDate(start.getDate()-89);Object.entries(data.records).forEach(([date,rec])=>{const dt=new Date(date+"T12:00:00");if(range!=="all"&&(dt<start||dt>now))return;Object.values(rec.items||{}).forEach(it=>{const s=it.snapshot;if(!s)return;const mult=it.status==="completed"?1:it.status==="mva"?s.mva:0;s.points.forEach(x=>{if(x.dimensionId===dimId)total+=x.points*mult})})});return total}
 function percent(d,range){const ds=data.dimensions.filter(x=>!x.archived),max=Math.max(25,...ds.map(x=>rawPoints(x.id,range)));return Math.min(100,rawPoints(d.id,range)/(max*1.18)*100)}
 function switchView(v){view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
-function render(){const labels={overview:["YOUR CHARACTER","Overview"],tracker:["DAILY CHECK-IN","Daily tracker"],library:["YOUR SYSTEM","Habit library"],stats:["THE LONG VIEW","Statistics"],settings:["PREFERENCES","Settings & data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view));renderOverview();renderTracker();renderLibrary();renderStats();renderSettings()}
+function render(){const labels={overview:["Your Character","Overview"],tracker:["Daily Check-In","Daily tracker"],library:["Your System","Habit library"],stats:["The Long View","Statistics"],settings:["Preferences","Settings & data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view));renderOverview();renderTracker();renderLibrary();renderStats();renderSettings()}
 function renderOverview(){const ds=data.dimensions.filter(d=>!d.archived);drawRadar(ds,period);}
 function drawRadar(ds,range){
  const svg=$("#radar"),cx=500,cy=380,r=230,n=ds.length;
@@ -64,7 +64,7 @@ function drawRadar(ds,range){
   out+='<circle class="radar-node-glow" cx="'+p[0]+'" cy="'+p[1]+'" r="15" fill="'+esc(d.color)+'"/>'+
    '<circle class="radar-node" cx="'+p[0]+'" cy="'+p[1]+'" r="5.5" fill="'+esc(d.color)+'"/>'+
    '<circle class="radar-point" cx="'+p[0]+'" cy="'+p[1]+'" r="2.3" style="fill:#fff;filter:url(#softGlow)"/>'+
-   '<text class="radar-label" x="'+label[0]+'" y="'+(label[1]-6)+'" text-anchor="'+anchor+'">'+esc(d.name.toUpperCase())+'</text>'+
+   '<text class="radar-label" x="'+label[0]+'" y="'+(label[1]-6)+'" text-anchor="'+anchor+'">'+esc(d.name)+'</text>'+
    '<text class="radar-value" x="'+label[0]+'" y="'+(label[1]+15)+'" text-anchor="'+anchor+'">'+fmt(vals[i])+' pts</text>';
  });
  out+='<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#f4edff"/>';
