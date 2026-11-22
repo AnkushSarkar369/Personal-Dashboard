@@ -17,9 +17,7 @@
     <button class="nav-item" data-view="stats"><span>⌁</span>Statistics</button>
   </nav>
   <div class="sidebar-bottom">
-    <div class="storage-status"><i id="storageDot"></i><span id="storageText">Saved in this browser</span></div>
     <button class="nav-item" data-view="settings"><span>⚙</span>Settings & data</button>
-    <div class="sidebar-foot">LOCAL FIRST · NO ACCOUNT</div>
   </div>
 </aside>
 <main class="main">
@@ -30,9 +28,8 @@
 
 <section class="view active" id="view-overview">
   <div class="character-screen">
-    <div class="character-topline"><span class="eyebrow">YOUR CHARACTER · LIVE PROGRESSION</span><div class="segmented" data-period-control><button class="selected" data-period="1m">1M</button><button data-period="3m">3M</button><button data-period="all">ALL TIME</button></div></div>
+    <div class="character-topline"><div class="segmented" data-period-control><button class="selected" data-period="1m">1M</button><button data-period="3m">3M</button><button data-period="all">ALL TIME</button></div></div>
     <div class="radar-stage"><svg id="radar" viewBox="0 0 900 660" role="img" aria-label="Living character progression radar"></svg></div>
-    <div class="character-foot"><span id="radarCaption">Each dimension grows on its own scale</span><span id="characterTotal"></span></div>
   </div>
 </section>
 
@@ -80,7 +77,6 @@
     <article class="panel settings-card danger-card"><div class="eyebrow">RESET</div><h3>Reset sample / personal data</h3><p class="muted">This clears the current setup and restores the original sample workspace.</p><button class="danger-button" id="resetData">Restore sample data</button></article>
   </div>
 </section>
-<footer><span>HABIT RADAR</span><span>BUILT FOR YOUR OWN RULES</span></footer>
 </main></div>
 <div class="toast" id="toast" role="status"></div>
 <script src="app.js"></script>
