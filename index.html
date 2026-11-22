@@ -65,18 +65,22 @@
 </section>
 
 <section class="view" id="view-stats">
-  <div class="section-heading stats-heading"><div><div class="eyebrow">The Long View</div><h2>Statistics</h2><p class="muted">Recent Performance And Accumulated Progression.</p></div><div class="segmented large" data-period-control><button class="selected" data-period="1m">1 Month</button><button data-period="3m">3 Months</button><button data-period="all">Cumulative</button></div></div>
-  <div id="statsCards" class="stats-cards"></div>
-  <article class="panel"><div class="panel-heading"><div><div class="eyebrow">Dimension Breakdown</div><h3>Progression Ledger</h3></div></div><div id="statsTable"></div></article>
+  <div class="stats-screen">
+    <div class="section-heading stats-heading"><div><h2>Statistics</h2><p class="muted">Recent performance and accumulated progression.</p></div><div class="segmented large" data-period-control><button class="selected" data-period="1m">1 Month</button><button data-period="3m">3 Months</button><button data-period="all">Cumulative</button></div></div>
+    <div id="statsCards" class="stats-cards"></div>
+    <article class="panel stats-ledger-panel"><div class="panel-heading"><div><div class="eyebrow">Dimension Breakdown</div><h3>Progression Ledger</h3></div><span class="ledger-hint">Select a dimension to open it in Habit Library</span></div><div id="statsTable"></div></article>
+  </div>
 </section>
 
 <section class="view" id="view-settings">
-  <div class="section-heading"><div><div class="eyebrow">Preferences</div><h2>Settings & Data</h2><p class="muted">Configure Scoring And Keep Your Records Portable.</p></div></div>
-  <div class="settings-grid">
+  <div class="settings-screen">
+    <div class="section-heading settings-heading"><div><h2>Settings & Data</h2><p class="muted">Scoring, storage, backups and reset controls.</p></div></div>
+    <div class="settings-grid">
     <article class="panel settings-card"><div class="eyebrow">Scoring</div><h3>Minimum Viable Action</h3><div class="setting-row"><label for="mvaRange">Global MVA Multiplier</label><strong id="mvaValue">0.25×</strong></div><input type="range" id="mvaRange" min=".1" max=".5" step=".05" value=".25"><div class="range-label"><span>0.10×</span><span>0.50×</span></div><p class="muted">Applies To Future Activity Only. Existing Records Keep Their Original Multiplier.</p><div class="setting-row"><label for="defaultBenchmark">Default Benchmark</label><input id="defaultBenchmark" type="number" min="1" step="100" value="1000"></div></article>
     <article class="panel settings-card"><div class="eyebrow">Portable Storage</div><h3>Data Location</h3><p class="muted">The App Saves In Browser Storage Automatically. On Supported Desktop Browsers, Connect A Folder To Also Write A JSON File There.</p><button class="secondary-button" id="chooseFolder">Choose Data Folder</button><div id="storageDetail" class="storage-detail">No External Folder Connected.</div><button class="secondary-button" id="saveNow">Save Now / Export</button></article>
     <article class="panel settings-card"><div class="eyebrow">Backup & Restore</div><h3>Your Data, Portable</h3><p class="muted">Export Or Restore Dimensions, Habits, Active States And Historical Records.</p><div class="button-row"><button class="secondary-button" id="exportData">Export JSON</button><label class="secondary-button file-button">Import JSON<input type="file" id="importData" accept=".json,application/json" hidden></label></div></article>
     <article class="panel settings-card danger-card"><div class="eyebrow">Reset</div><h3>Reset Sample / Personal Data</h3><p class="muted">This Clears The Current Setup And Restores The Original Sample Workspace.</p><button class="danger-button" id="resetData">Restore Sample Data</button></article>
+    </div>
   </div>
 </section>
 </main></div>
