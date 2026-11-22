@@ -105,7 +105,7 @@ function drawRadar(ds,range){
   out+='<circle class="radar-node-glow" cx="'+p[0]+'" cy="'+p[1]+'" r="15" fill="'+esc(d.color)+'"/>'+
    '<circle class="radar-node" cx="'+p[0]+'" cy="'+p[1]+'" r="5.5" fill="'+esc(d.color)+'"/>'+
    '<circle class="radar-point" cx="'+p[0]+'" cy="'+p[1]+'" r="2.3" style="fill:#fff;filter:url(#softGlow)"/>'+
-   '<text class="radar-label" x="'+label[0]+'" y="'+(label[1]-6)+'" text-anchor="'+anchor+'">'+esc(titleCase(d.name))+'</text>'+
+   '<text class="radar-label" x="'+label[0]+'" y="'+(label[1]-6)+'" text-anchor="'+anchor+'" style="fill:'+esc(d.color)+';color:'+esc(d.color)+'">'+esc(titleCase(d.name))+'</text>'+
    '<text class="radar-value" x="'+label[0]+'" y="'+(label[1]+15)+'" text-anchor="'+anchor+'">'+fmt(vals[i])+' pts</text>';
  });
  out+='<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#f4edff"/>';
@@ -140,8 +140,8 @@ function reorderHabits(fromId,toId){
 }
 function renderHabitStats(){
  const h=H(selectedStatsHabit);
- if(!h){$("#habitStatsName").textContent="Habit Statistics";$("#habitStatsDescription").textContent="Select A Habit From The Daily Tracker.";$("#habitStatsCards").innerHTML="";$("#habitStatsTable").innerHTML='<div class="empty-state">No Habit Selected.</div>';return}
- $("#habitStatsName").textContent=titleCase(h.name);
+ if(!h){$("#habitStatsName").textContent="Habit Statistics";$("#habitStatsName").style.color="";$("#habitStatsName").style.textShadow="";$("#habitStatsDescription").textContent="Select A Habit From The Daily Tracker.";$("#habitStatsCards").innerHTML="";$("#habitStatsTable").innerHTML='<div class="empty-state">No Habit Selected.</div>';return}
+ $("#habitStatsName").textContent=titleCase(h.name);$("#habitStatsName").style.color=habitAccent(h);$("#habitStatsName").style.textShadow="0 0 22px "+habitAccent(h)+"33";
  $("#habitStatsDescription").textContent=(habitAllocations(h).length>1?"Shared Habit · ":"")+"Individual Habit Progress";
  const now=new Date(today()+"T12:00:00+05:30"),start=new Date(now);
  if(period==="1m")start.setDate(start.getDate()-29);
@@ -225,7 +225,7 @@ function submitHabitModal(e){
 }
 function toggleHabit(id){const h=H(id);if(!h)return;h.active=!(h.active&&!h.archived);h.archived=false;save();toast(h.active?"Habit Activated.":"Habit Made Inactive.")}
 
-function renderStats(){const ds=data.dimensions.filter(d=>!d.archived),total=ds.reduce((a,d)=>a+rawPoints(d.id,period),0),rec=data.records[today()];let todayTotal=0;if(rec)Object.values(rec.items).forEach(it=>todayTotal+=pointsFor(it.snapshot,it.status));$("#statsCards").innerHTML='<div class="stat-card"><div class="eyebrow">Points In View</div><strong>'+fmt(total)+'</strong><span>'+(period==="all"?"Accumulated Total":period==="1m"?"Last 30 Days":"Last 90 Days")+'</span></div><div class="stat-card"><div class="eyebrow">Active Habits</div><strong>'+activeHabits().length+'</strong><span>Currently enabled</span></div><div class="stat-card"><div class="eyebrow">Points Today</div><strong>'+fmt(todayTotal)+'</strong><span>Across all dimensions</span></div>';$("#statsTable").innerHTML=ds.length?'<table class="data-table"><thead><tr><th>Dimension</th><th>Points</th><th>Benchmark</th><th>Progress</th></tr></thead><tbody>'+ds.map(d=>'<tr><td>'+esc(d.name)+'</td><td>'+fmt(rawPoints(d.id,period))+'</td><td>'+fmt(d.benchmark)+'</td><td>'+percent(d,period).toFixed(1)+'%</td></tr>').join("")+'</tbody></table>':'<div class="empty-state">No dimensions to report.</div>';applyTitleCase()}
+function renderStats(){const ds=data.dimensions.filter(d=>!d.archived),total=ds.reduce((a,d)=>a+rawPoints(d.id,period),0),rec=data.records[today()];let todayTotal=0;if(rec)Object.values(rec.items).forEach(it=>todayTotal+=pointsFor(it.snapshot,it.status));$("#statsCards").innerHTML='<div class="stat-card"><div class="eyebrow">Points In View</div><strong>'+fmt(total)+'</strong><span>'+(period==="all"?"Accumulated Total":period==="1m"?"Last 30 Days":"Last 90 Days")+'</span></div><div class="stat-card"><div class="eyebrow">Active Habits</div><strong>'+activeHabits().length+'</strong><span>Currently enabled</span></div><div class="stat-card"><div class="eyebrow">Points Today</div><strong>'+fmt(todayTotal)+'</strong><span>Across all dimensions</span></div>';$("#statsTable").innerHTML=ds.length?'<table class="data-table"><thead><tr><th>Dimension</th><th>Points</th><th>Benchmark</th><th>Progress</th></tr></thead><tbody>'+ds.map(d=>'<tr><td><span class="dimension-table-label" style="--dimension-accent:'+esc(d.color)+'"><i></i>'+esc(d.name)+'</span></td><td>'+fmt(rawPoints(d.id,period))+'</td><td>'+fmt(d.benchmark)+'</td><td>'+percent(d,period).toFixed(1)+'%</td></tr>').join("")+'</tbody></table>':'<div class="empty-state">No dimensions to report.</div>';applyTitleCase()}
 function renderSettings(){$("#mvaRange").value=data.settings.mva;$("#mvaValue").textContent=Number(data.settings.mva).toFixed(2)+"×";$("#defaultBenchmark").value=data.settings.defaultBenchmark;$("#storageDetail").textContent=dataFolder?"Connected Folder. Automatic JSON Backup Is Enabled.":"Browser Storage Is Active. Folder-Based Saving Is Optional And Only Available In Supported Browsers."}
 function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function exportData(){download("habit-radar-backup-"+today()+".json",JSON.stringify(data,null,2));toast("Backup Exported.")}
