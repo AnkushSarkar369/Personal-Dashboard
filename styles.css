@@ -457,3 +457,34 @@
 @media(prefers-reduced-motion:reduce){
  .dimension-card,.library-habit-row,.library-lock,.add-dimension-card,.dimension-choice{transition:none!important}
 }
+
+
+/* Sidebar: fully retractable, with a persistent reopen tab. */
+.app{grid-template-columns:228px minmax(0,1fr);transition:grid-template-columns .24s cubic-bezier(.2,.75,.2,1)}
+.sidebar{position:sticky;z-index:20;min-width:0;overflow:hidden;transition:transform .24s cubic-bezier(.2,.75,.2,1),padding .24s ease,border-color .24s ease}
+.sidebar-close,.sidebar-reopen{display:grid;place-items:center;width:29px;height:29px;border:1px solid #30394a;border-radius:8px;background:#151b26;color:#aeb9cb;font-size:22px;line-height:1;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease}
+.sidebar-close{position:absolute;top:17px;right:12px;z-index:2}
+.sidebar-close:hover,.sidebar-reopen:hover{border-color:#796ba8;background:#211d31;color:#e1d7ff}
+.sidebar-reopen{position:fixed;z-index:30;top:16px;left:14px;display:none;box-shadow:0 5px 20px rgba(0,0,0,.3)}
+.app.sidebar-collapsed{grid-template-columns:0 minmax(0,1fr)}
+.app.sidebar-collapsed .sidebar{transform:translateX(-100%);padding-left:0;padding-right:0;border-right:0;pointer-events:none}
+.app.sidebar-collapsed .sidebar-reopen{display:grid}
+.app.sidebar-collapsed .main{max-width:none}
+.app:has(#view-library.active) .topbar{display:none}
+.library-heading{align-items:center;margin:8px 0 18px}
+.library-heading h2{margin:0;font-size:25px;letter-spacing:-.65px;font-weight:590}
+.library-heading #addHabit{flex:none}
+.dimension-grid{margin-top:0}
+@media(max-width:700px){
+ .app{grid-template-columns:228px minmax(0,1fr)}
+ .app.sidebar-collapsed{grid-template-columns:0 minmax(0,1fr)}
+ .sidebar{position:fixed;left:0;top:0;bottom:0;width:228px;height:100dvh;box-shadow:12px 0 40px rgba(0,0,0,.28)}
+ .app.sidebar-collapsed .sidebar{transform:translateX(-100%);width:228px;padding:27px 16px 20px}
+ .app.sidebar-collapsed .main{padding-left:18px;padding-right:18px}
+ .sidebar-reopen{top:10px;left:10px}
+ .library-heading{margin:8px 0 16px}
+ .library-heading h2{font-size:22px}
+}
+@media(prefers-reduced-motion:reduce){
+ .app,.sidebar,.sidebar-close,.sidebar-reopen{transition:none!important}
+}
