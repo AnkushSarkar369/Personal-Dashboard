@@ -86,7 +86,7 @@ function pointsFor(s,status){const m=status==="completed"?1:status==="mva"?s.mva
 function cycle(id,date,status){const h=H(id),rec=data.records[date]||(data.records[date]={date,items:{}}),previous=rec.items?.[id];if(!h&&!previous?.snapshot)return;if(!["completed","mva","missed"].includes(status))return;rec.items[id]={status,snapshot:previous?.snapshot||snapshot(h),updatedAt:new Date().toISOString()};save()}
 function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:00"),start=new Date(now);if(range==="1m")start.setDate(start.getDate()-29);if(range==="3m")start.setDate(start.getDate()-89);Object.entries(data.records).forEach(([date,rec])=>{const dt=new Date(date+"T12:00:00");if(range!=="all"&&(dt<start||dt>now))return;Object.values(rec.items||{}).forEach(it=>{const s=it.snapshot;if(!s)return;const mult=it.status==="completed"?1:it.status==="mva"?s.mva:0;s.points.forEach(x=>{if(x.dimensionId===dimId)total+=x.points*mult})})});return total}
 function percent(d,range){const ds=data.dimensions.filter(x=>!x.archived),max=Math.max(25,...ds.map(x=>rawPoints(x.id,range)));return Math.min(100,rawPoints(d.id,range)/(max*1.18)*100)}
-function switchView(v){if(v==="stats"&&view!=="stats")statsSpotlightHabit=null;if(v==="tracker"&&view!=="tracker")selectedDate=today();view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
+function switchView(v){if(v==="stats"&&view!=="stats")statsSpotlightHabit=null;if(v==="tracker")selectedDate=today();view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
 function setSidebarOpen(open){
  const app=$(".app"),button=$("#sidebarClose");
  app.classList.toggle("sidebar-collapsed",!open);
