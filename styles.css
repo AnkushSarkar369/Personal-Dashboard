@@ -119,3 +119,5 @@
 @media(prefers-reduced-motion:reduce){
  .star,.star-spark,.radar-personality-ring,.radar-core-halo{animation:none!important}
 }
+
+.storage-status[hidden]{display:none!important}
