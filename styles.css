@@ -836,7 +836,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 .daily-habit .status-dots{
  width:144px;min-width:144px;min-height:48px;flex:0 0 144px;
  display:flex;align-items:center;justify-content:space-between;gap:12px;
- margin:-9px -10px -9px 12px;padding:10px 14px;border-radius:13px
+ margin:-9px -10px -9px auto;padding:10px 14px;border-radius:13px
 }
 .daily-habit .habit-history{margin-left:auto;flex:0 0 64px}
 .status-dot:before{inset:-5px}
