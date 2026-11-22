@@ -795,3 +795,67 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
  .app.sidebar-collapsed .main{padding-left:14px;padding-right:14px}
  .app.sidebar-collapsed .sidebar-close{left:21px;right:auto}
 }
+
+
+/* Sidebar refinement: keep labels on one line and animate between two fixed widths. */
+.app{
+ grid-template-columns:228px minmax(0,1fr);
+ transition:grid-template-columns 340ms cubic-bezier(.22,1,.36,1);
+}
+.sidebar{
+ width:228px;min-width:0;transform:none!important;
+ transition:width 340ms cubic-bezier(.22,1,.36,1),padding 340ms cubic-bezier(.22,1,.36,1);
+}
+.nav-item{flex-wrap:nowrap;white-space:nowrap;min-width:0}
+.nav-item .nav-icon{width:17px;height:17px;flex:0 0 17px}
+.nav-item .nav-text{
+ display:block;width:auto;min-width:0;max-width:150px;flex:0 1 auto;
+ overflow:hidden;white-space:nowrap;text-overflow:clip;opacity:1;
+ transition:max-width 300ms cubic-bezier(.22,1,.36,1),opacity 180ms ease;
+}
+.app.sidebar-collapsed{grid-template-columns:76px minmax(0,1fr)}
+.app.sidebar-collapsed .sidebar{width:76px;padding:60px 8px 18px}
+.app.sidebar-collapsed .sidebar-close{left:23px;right:auto;top:16px}
+.app.sidebar-collapsed .brand{justify-content:center;gap:0;padding:0 0 35px}
+.app.sidebar-collapsed .brand>span:not(.brand-icon){display:none}
+.app.sidebar-collapsed .navigation{gap:8px}
+.app.sidebar-collapsed .nav-item{
+ min-height:42px;justify-content:center;gap:0;padding:10px 0;font-size:12px;text-align:center
+}
+.app.sidebar-collapsed .nav-item .nav-text{
+ display:block;width:0;max-width:0;min-width:0;flex:0 1 0;
+ opacity:0;pointer-events:none
+}
+.app.sidebar-collapsed .nav-icon{width:19px;height:19px;flex-basis:19px}
+.app.sidebar-collapsed .nav-item.active:after{display:none}
+.app.sidebar-collapsed .sidebar-bottom .storage-status{display:none}
+.app.sidebar-collapsed .sidebar-bottom .nav-item{margin-top:8px}
+.app.sidebar-collapsed .main{max-width:1600px;min-width:0}
+
+/* Daily Tracker: keep the status cluster fixed to the far right, with the older generous target. */
+.daily-habit .status-dots{
+ width:144px;min-width:144px;min-height:48px;flex:0 0 144px;
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+ margin:-9px -10px -9px 12px;padding:10px 14px;border-radius:13px
+}
+.daily-habit .habit-history{margin-left:auto;flex:0 0 64px}
+.status-dot:before{inset:-5px}
+
+/* A single centered action reads better than an orphaned right-aligned button. */
+.library-heading{display:flex;justify-content:center;align-items:center;width:100%;margin:12px 0 22px}
+.library-heading #addHabit{min-width:158px;justify-content:center;padding:11px 18px}
+
+@media(max-width:700px){
+ .app{grid-template-columns:228px minmax(0,1fr)}
+ .app.sidebar-collapsed{grid-template-columns:76px minmax(0,1fr)}
+ .app.sidebar-collapsed .sidebar{
+  position:fixed;left:0;top:0;bottom:0;width:76px;height:100dvh;
+  padding:60px 8px 18px;transform:none;box-shadow:none
+ }
+ .app.sidebar-collapsed .main{padding-left:14px;padding-right:14px}
+ .app.sidebar-collapsed .sidebar-close{left:23px;right:auto}
+ .app:not(.sidebar-collapsed) .nav-item{flex-direction:row;justify-content:flex-start;gap:12px}
+ .app:not(.sidebar-collapsed) .nav-item .nav-text{width:auto;max-width:150px;opacity:1}
+ .library-heading{justify-content:center;align-items:center}
+ .daily-habit .status-dots{margin-left:auto;margin-right:-7px;width:144px;flex-basis:144px}
+}
