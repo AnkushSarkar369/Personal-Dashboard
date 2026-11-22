@@ -55,10 +55,11 @@ function titleCase(s){
   return acronyms[lower]||(lower.length===1?lower.toUpperCase():lower[0].toUpperCase()+lower.slice(1));
  });
 }
+function dimensionLabel(name){return String(name??"").trim().toUpperCase();}
 function applyTitleCase(){
  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),nodes=[];
  while(walker.nextNode())if(walker.currentNode.nodeValue.trim())nodes.push(walker.currentNode);
- nodes.forEach(node=>{if(!node.parentElement.closest("script,style"))node.nodeValue=titleCase(node.nodeValue)});
+ nodes.forEach(node=>{if(!node.parentElement.closest("script,style,[data-dimension-name]"))node.nodeValue=titleCase(node.nodeValue)});
  document.querySelectorAll("[title],[aria-label],[placeholder]").forEach(el=>{
   ["title","aria-label","placeholder"].forEach(attr=>{if(el.hasAttribute(attr))el.setAttribute(attr,titleCase(el.getAttribute(attr)))});
  });
@@ -79,7 +80,7 @@ function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:0
 function percent(d,range){const ds=data.dimensions.filter(x=>!x.archived),max=Math.max(25,...ds.map(x=>rawPoints(x.id,range)));return Math.min(100,rawPoints(d.id,range)/(max*1.18)*100)}
 function switchView(v){view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
 function setSidebarOpen(open){const app=$(".app");app.classList.toggle("sidebar-collapsed",!open);$("#sidebarClose").setAttribute("aria-expanded",String(open));$("#sidebarReopen").setAttribute("aria-expanded",String(open));try{localStorage.setItem("habitRadarSidebarOpen",open?"1":"0")}catch(e){}}
-function render(){const statHabit=H(selectedStatsHabit);const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["Your System","Habit Library"],stats:["The Long View","Statistics"],settings:["Preferences","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderOverview();renderTracker();renderHabitStats();renderLibrary();renderStats();renderSettings();applyTitleCase()}
+function render(){const statHabit=H(selectedStatsHabit);const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["","Habit Library"],stats:["","Statistics"],settings:["","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderOverview();renderTracker();renderHabitStats();renderLibrary();renderStats();renderSettings();applyTitleCase()}
 function renderOverview(){const ds=data.dimensions.filter(d=>!d.archived);drawRadar(ds,period);}
 function drawRadar(ds,range){
  const svg=$("#radar"),cx=500,cy=380,r=230,n=ds.length;
@@ -106,7 +107,7 @@ function drawRadar(ds,range){
   out+='<circle class="radar-node-glow" cx="'+p[0]+'" cy="'+p[1]+'" r="15" fill="'+esc(d.color)+'"/>'+
    '<circle class="radar-node" cx="'+p[0]+'" cy="'+p[1]+'" r="5.5" fill="'+esc(d.color)+'"/>'+
    '<circle class="radar-point" cx="'+p[0]+'" cy="'+p[1]+'" r="2.3" style="fill:#fff;filter:url(#softGlow)"/>'+
-   '<text class="radar-label" x="'+label[0]+'" y="'+(label[1]-6)+'" text-anchor="'+anchor+'" style="fill:'+esc(d.color)+';color:'+esc(d.color)+'">'+esc(titleCase(d.name))+'</text>'+
+   '<text class="radar-label" data-dimension-name="true" x="'+label[0]+'" y="'+(label[1]-6)+'" text-anchor="'+anchor+'" style="fill:'+esc(d.color)+';color:'+esc(d.color)+'">'+esc(dimensionLabel(d.name))+'</text>'+
    '<text class="radar-value" x="'+label[0]+'" y="'+(label[1]+15)+'" text-anchor="'+anchor+'">'+fmt(vals[i])+' pts</text>';
  });
  out+='<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#f4edff"/>';
@@ -173,8 +174,8 @@ function renderLibrary(){
     '<button class="library-lock '+(locked?'is-locked':'is-unlocked')+'" data-toggle-habit="'+esc(h.id)+'" aria-label="'+(locked?'Activate ':'Deactivate ')+esc(h.name)+'" title="'+(locked?'Unlock Habit':'Lock Habit')+'">'+
     (locked?'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7.5-2"></path><path d="M16.5 5.5V10"></path></svg>')+'</button></article>';
   }).join(""):'<div class="library-group-empty">'+(isInactive?'No Inactive Habits':'No Active Habits')+'</div>';
-  return '<article class="dimension-card" style="--dimension-accent:'+esc(safeColor(d.color,DIMENSION_COLORS[0]))+'">'+
-   '<header class="dimension-card-header"><div class="dimension-title-wrap"><span class="dimension-color-mark"></span><h3>'+esc(titleCase(d.name))+'</h3></div><div class="dimension-header-tools"><span class="dimension-total">'+habits.length+'</span><button class="dimension-edit" data-edit-dimension="'+esc(d.id)+'" aria-label="Rename '+esc(d.name)+'" title="Rename Dimension">···</button></div></header>'+
+  return '<article class="dimension-card" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(safeColor(d.color,DIMENSION_COLORS[0]))+'">'+
+   '<header class="dimension-card-header"><div class="dimension-title-wrap"><span class="dimension-color-mark"></span><h3 data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</h3></div><div class="dimension-header-tools"><span class="dimension-total">'+habits.length+'</span><button class="dimension-edit" data-edit-dimension="'+esc(d.id)+'" aria-label="Rename '+esc(dimensionLabel(d.name))+'" title="Rename Dimension">···</button></div></header>'+
    '<section class="library-group"><div class="library-group-heading"><span>Active</span><span>'+active.length+'</span></div><div class="library-habit-list">'+rows(active,false)+'</div></section>'+
    '<section class="library-group inactive-group"><div class="library-group-heading"><span>Inactive</span><span>'+inactive.length+'</span></div><div class="library-habit-list">'+rows(inactive,true)+'</div></section></article>';
  }).join("")+'<button class="add-dimension-card" data-add-dimension><span class="add-dimension-plus">＋</span><strong>Add Dimension</strong><small>Create another area of life</small></button>';
@@ -187,7 +188,7 @@ function addDimension(){
  save();toast("Dimension Added.");
 }
 function editDimension(id){
- const d=D(id);if(!d)return;const name=prompt("Rename Dimension",titleCase(d.name));
+ const d=D(id);if(!d)return;const name=prompt("Rename Dimension",dimensionLabel(d.name));
  if(name===null)return;if(!name.trim()){toast("Dimension Name Cannot Be Empty.");return}
  if(data.dimensions.some(x=>x.id!==id&&x.name.trim().toLowerCase()===name.trim().toLowerCase())){toast("That Dimension Already Exists.");return}
  d.name=name.trim();save();toast("Dimension Renamed.");
@@ -197,7 +198,7 @@ function openHabitModal(id){
  const existing=new Map((h?.points||[]).map(x=>[x.dimensionId,x.points]));
  const options=dims.map(d=>{
   const checked=existing.has(d.id),points=checked?existing.get(d.id):10;
-  return '<label class="dimension-choice '+(checked?'selected':'')+'"><span class="dimension-choice-name"><input type="checkbox" data-modal-dimension="'+esc(d.id)+'" '+(checked?'checked':'')+'><i style="--choice-accent:'+esc(d.color)+'"></i><span>'+esc(titleCase(d.name))+'</span></span><span class="dimension-points"><input type="number" data-modal-points="'+esc(d.id)+'" min="0.25" step="0.25" value="'+esc(points)+'" '+(!checked?'disabled':'')+' aria-label="'+esc(d.name)+' points"><small>pts</small></span></label>';
+  return '<label class="dimension-choice '+(checked?'selected':'')+'"><span class="dimension-choice-name"><input type="checkbox" data-modal-dimension="'+esc(d.id)+'" '+(checked?'checked':'')+'><i style="--choice-accent:'+esc(d.color)+'"></i><span data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</span></span><span class="dimension-points"><input type="number" data-modal-points="'+esc(d.id)+'" min="0.25" step="0.25" value="'+esc(points)+'" '+(!checked?'disabled':'')+' aria-label="'+esc(dimensionLabel(d.name))+' points"><small>pts</small></span></label>';
  }).join("");
  const modal=$("#libraryModal");modal.dataset.editingHabit=h?.id||"";
  modal.innerHTML='<div class="library-modal-backdrop" data-close-library-modal></div><section class="library-dialog" role="dialog" aria-modal="true" aria-labelledby="libraryDialogTitle">'+
@@ -226,7 +227,26 @@ function submitHabitModal(e){
 }
 function toggleHabit(id){const h=H(id);if(!h)return;h.active=!(h.active&&!h.archived);h.archived=false;save();toast(h.active?"Habit Activated.":"Habit Made Inactive.")}
 
-function renderStats(){const ds=data.dimensions.filter(d=>!d.archived),total=ds.reduce((a,d)=>a+rawPoints(d.id,period),0),rec=data.records[today()];let todayTotal=0;if(rec)Object.values(rec.items).forEach(it=>todayTotal+=pointsFor(it.snapshot,it.status));$("#statsCards").innerHTML='<div class="stat-card"><div class="eyebrow">Points In View</div><strong>'+fmt(total)+'</strong><span>'+(period==="all"?"Accumulated Total":period==="1m"?"Last 30 Days":"Last 90 Days")+'</span></div><div class="stat-card"><div class="eyebrow">Active Habits</div><strong>'+activeHabits().length+'</strong><span>Currently enabled</span></div><div class="stat-card"><div class="eyebrow">Points Today</div><strong>'+fmt(todayTotal)+'</strong><span>Across all dimensions</span></div>';$("#statsTable").innerHTML=ds.length?'<table class="data-table"><thead><tr><th>Dimension</th><th>Points</th><th>Benchmark</th><th>Progress</th></tr></thead><tbody>'+ds.map(d=>'<tr><td><span class="dimension-table-label" style="--dimension-accent:'+esc(d.color)+'"><i></i>'+esc(d.name)+'</span></td><td>'+fmt(rawPoints(d.id,period))+'</td><td>'+fmt(d.benchmark)+'</td><td>'+percent(d,period).toFixed(1)+'%</td></tr>').join("")+'</tbody></table>':'<div class="empty-state">No dimensions to report.</div>';applyTitleCase()}
+function renderStats(){
+ const ds=data.dimensions.filter(d=>!d.archived),total=ds.reduce((a,d)=>a+rawPoints(d.id,period),0),rec=data.records[today()];
+ let todayTotal=0;
+ if(rec)Object.values(rec.items).forEach(it=>todayTotal+=pointsFor(it.snapshot,it.status));
+ $("#statsCards").innerHTML=
+  '<div class="stat-card"><div class="eyebrow">Points In View</div><strong>'+fmt(total)+'</strong><span>'+(period==="all"?"Accumulated Total":period==="1m"?"Last 30 Days":"Last 90 Days")+'</span></div>'+
+  '<div class="stat-card"><div class="eyebrow">Active Habits</div><strong>'+activeHabits().length+'</strong><span>Currently enabled</span></div>'+
+  '<div class="stat-card"><div class="eyebrow">Points Today</div><strong>'+fmt(todayTotal)+'</strong><span>Across all dimensions</span></div>';
+ $("#statsTable").innerHTML=ds.length?
+  '<div class="stats-table-wrap"><table class="data-table"><thead><tr><th>Dimension</th><th>Points</th><th>Benchmark</th><th>Progress</th></tr></thead><tbody>'+
+  ds.map(d=>'<tr class="dimension-stat-row" data-open-dimension="'+esc(d.id)+'" tabindex="0" role="button" aria-label="Open '+esc(dimensionLabel(d.name))+' in Habit Library"><td><span class="dimension-table-label" style="--dimension-accent:'+esc(d.color)+'"><i></i><span data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</span><span class="dimension-row-open" aria-hidden="true">↗</span></span></td><td>'+fmt(rawPoints(d.id,period))+'</td><td>'+fmt(d.benchmark)+'</td><td>'+percent(d,period).toFixed(1)+'%</td></tr>').join("")+
+  '</tbody></table></div>':'<div class="empty-state">No dimensions to report.</div>';
+ applyTitleCase();
+}
+function openDimensionInLibrary(id){
+ const d=D(id);if(!d)return;
+ switchView("library");
+ const card=$("[data-dimension-card]").find(el=>el.dataset.dimensionCard===id);
+ if(card){card.classList.add("dimension-card-focus");card.scrollIntoView({behavior:"smooth",block:"center"});}
+}
 function renderSettings(){$("#mvaRange").value=data.settings.mva;$("#mvaValue").textContent=Number(data.settings.mva).toFixed(2)+"×";$("#defaultBenchmark").value=data.settings.defaultBenchmark;$("#storageDetail").textContent=dataFolder?"Connected Folder. Automatic JSON Backup Is Enabled.":"Browser Storage Is Active. Folder-Based Saving Is Optional And Only Available In Supported Browsers."}
 function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function exportData(){download("habit-radar-backup-"+today()+".json",JSON.stringify(data,null,2));toast("Backup Exported.")}
@@ -242,6 +262,7 @@ document.addEventListener("click",e=>{
  const back=e.target.closest("[data-back-tracker]");if(back){switchView("tracker");return}
  const stateBtn=e.target.closest("[data-set-status]");if(stateBtn){cycle(stateBtn.dataset.habit,today(),stateBtn.dataset.setStatus);return}
  const habitRow=e.target.closest("[data-open-habit]");if(habitRow&&!e.target.closest("button,.daily-grip,.status-dots")){openHabitStats(habitRow.dataset.openHabit);return}
+ const dimensionRow=e.target.closest("[data-open-dimension]");if(dimensionRow){openDimensionInLibrary(dimensionRow.dataset.openDimension);return}
  const nav=e.target.closest("[data-view]");if(nav){switchView(nav.dataset.view);return}
  const go=e.target.closest("[data-go]");if(go){switchView(go.dataset.go);return}
  if(e.target.closest("#addHabit")){openHabitModal(null);return}
@@ -272,7 +293,15 @@ document.addEventListener("dragstart",e=>{const row=e.target.closest("[data-drag
 document.addEventListener("dragover",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!draggedHabitId)return;e.preventDefault();$$( ".daily-habit.drop-target").forEach(x=>x.classList.remove("drop-target"));if(row.dataset.dragHabit!==draggedHabitId)row.classList.add("drop-target")});
 document.addEventListener("drop",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!draggedHabitId)return;e.preventDefault();reorderHabits(draggedHabitId,row.dataset.dragHabit);draggedHabitId=null;$$( ".daily-habit").forEach(x=>x.classList.remove("dragging","drop-target"))});
 document.addEventListener("dragend",()=>{draggedHabitId=null;$$( ".daily-habit").forEach(x=>x.classList.remove("dragging","drop-target"))});
-document.addEventListener("keydown",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||e.target.closest("button"))return;if(e.key==="Enter"){e.preventDefault();openHabitStats(row.dataset.openHabit);return}if(!e.altKey||!["ArrowUp","ArrowDown"].includes(e.key))return;e.preventDefault();const list=activeHabits(),i=list.findIndex(h=>h.id===row.dataset.dragHabit),next=i+(e.key==="ArrowUp"?-1:1);if(next>=0&&next<list.length)reorderHabits(row.dataset.dragHabit,list[next].id)});
+document.addEventListener("keydown",e=>{
+  const dimensionRow=e.target.closest("[data-open-dimension]");
+  if(dimensionRow&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openDimensionInLibrary(dimensionRow.dataset.openDimension);return}
+  const row=e.target.closest("[data-drag-habit]");if(!row||e.target.closest("button"))return;
+  if(e.key==="Enter"){e.preventDefault();openHabitStats(row.dataset.openHabit);return}
+  if(!e.altKey||!["ArrowUp","ArrowDown"].includes(e.key))return;
+  e.preventDefault();const list=activeHabits(),i=list.findIndex(h=>h.id===row.dataset.dragHabit),next=i+(e.key==="ArrowUp"?-1:1);
+  if(next>=0&&next<list.length)reorderHabits(row.dataset.dragHabit,list[next].id)
+ });
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();dataFolder?saveFolder():exportData()}});
 render();
 try{if(localStorage.getItem("habitRadarSidebarOpen")==="0")setSidebarOpen(false)}catch(e){}
