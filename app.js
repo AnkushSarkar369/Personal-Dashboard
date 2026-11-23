@@ -97,7 +97,7 @@ function persistWithoutRender(){
  clearTimeout(saveTimer);saveTimer=setTimeout(saveFolder,250);
 }
 
-let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,lastTouchedHabitId=null,draggedDimensionId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
+let period="1m",view="overview",selectedDate=today(),archiveSelectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,lastTouchedHabitId=null,draggedDimensionId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
 function sampleStructure(){
  const dims=[["health","Health",COLORS[0]],["academics","Academics",COLORS[1]],["relationships","Relationships",COLORS[2]],["looks","Looksmaxxing",COLORS[3]]].map(([id,name,color])=>({id:"d-"+id,name,color,benchmark:1000,archived:false}));
  const pools=[
@@ -227,8 +227,29 @@ function habitAccent(h){const a=habitAllocations(h);return a.length>1?SPECIAL_CO
 function activeHabits(){return data.habits.filter(h=>h.active&&!h.archived&&habitAllocations(h).length>0)}
 function snapshot(h){const p=P(h.poolId);return {habitId:h.id,name:h.name,poolName:p?.name||"Habit Library",points:(h.points||[]).map(x=>({dimensionId:x.dimensionId,dimensionName:D(x.dimensionId)?.name||"Archived Dimension",points:Number(x.points)||0})),mva:Number(data.settings.mva)||.25}}
 function pointsFor(s,status){const m=status==="completed"?1:status==="mva"?s.mva:0;return s.points.reduce((a,x)=>a+x.points*m,0)}
-function cycle(id,date,status){const h=H(id),rec=data.records[date]||(data.records[date]={date,items:{}}),previous=rec.items?.[id];if(!h&&!previous?.snapshot)return;if(!["completed","mva","missed"].includes(status))return;rec.items[id]={status,snapshot:previous?.snapshot||snapshot(h),updatedAt:new Date().toISOString()};save()}
-function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:00"),start=new Date(now);if(range==="1m")start.setDate(start.getDate()-29);if(range==="3m")start.setDate(start.getDate()-89);Object.entries(data.records).forEach(([date,rec])=>{const dt=new Date(date+"T12:00:00");if(Number.isNaN(dt.getTime())||dt>now||(range!=="all"&&dt<start))return;Object.values(rec.items||{}).forEach(it=>{const s=it.snapshot;if(!s||!Array.isArray(s.points))return;const mult=it.status==="completed"?1:it.status==="mva"?s.mva:0;s.points.forEach(x=>{if(x.dimensionId===dimId)total+=Number(x.points||0)*mult})})});return total}
+function cycle(id,date,status){
+ const h=H(id);if(!h||!["completed","mva","missed"].includes(status))return;
+ const rec=ensureDateRecord(date),previous=rec.items[id];
+ if(previous?.status===status){delete rec.items[id];if(date<today())queueReconciliationItem(date,id);cleanupDateRecord(date)}
+ else{
+  rec.items[id]={status,snapshot:previous?.snapshot||snapshotForHabitDate(h,date),updatedAt:new Date().toISOString()};
+  rec.acknowledgedUnrecordedIds=(rec.acknowledgedUnrecordedIds||[]).filter(x=>x!==id);
+  removePendingReconciliation(date,id);
+ }
+ save();
+}
+function rawPoints(dimId,range){
+ let total=0;const end=today(),start=range==="1m"?shiftDateKey(end,-29):range==="3m"?shiftDateKey(end,-89):(data.settings.trackingStartDate||end);
+ Object.entries(data.records||{}).forEach(([date,rec])=>{
+  if(date<start||date<(data.settings.trackingStartDate||end)||date>end||isSpecialDay(date))return;
+  Object.values(rec.items||{}).forEach(it=>{
+   const s=it.snapshot;if(!s||!Array.isArray(s.points)||!["completed","mva","missed"].includes(it.status))return;
+   const mult=it.status==="completed"?1:it.status==="mva"?(Number(s.mva)||.25):0;
+   s.points.forEach(x=>{if(x.dimensionId===dimId)total+=Number(x.points||0)*mult});
+  });
+ });
+ return total;
+}
 function switchView(v){if(v==="stats"&&view!=="stats")statsSpotlightHabit=null;if(v==="tracker")selectedDate=today();view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
 function setSidebarOpen(open){
  const app=$(".app"),button=$("#sidebarClose");
@@ -545,7 +566,8 @@ function nextDimensionColor(){const used=new Set(data.dimensions.map(d=>safeColo
 function addDimension(){
  const name=prompt("Dimension Name");if(name===null||!name.trim())return;
  if(data.dimensions.some(d=>d.name.trim().toLowerCase()===name.trim().toLowerCase())){toast("That Dimension Already Exists.");return}
- data.dimensions.push({id:uid(),name:name.trim(),color:nextDimensionColor(),benchmark:Number(data.settings.defaultBenchmark)||1000,active:true,archived:false});
+ const dimension={id:uid(),name:name.trim(),color:nextDimensionColor(),benchmark:Number(data.settings.defaultBenchmark)||1000,active:true,archived:false};
+ data.dimensions.push(dimension);refreshDimensionEligibility(dimension,today());
  save();toast("Dimension Added.");
 }
 function editDimension(id){
@@ -556,7 +578,7 @@ function editDimension(id){
 }
 function toggleDimension(id){
  const d=D(id);if(!d)return;
- d.active=d.active===false;
+ d.active=d.active===false;refreshDimensionEligibility(d,today());
  save();toast(d.active?"Dimension Activated.":"Dimension Deactivated.");
 }
 function deleteDimension(id){
@@ -606,17 +628,24 @@ function submitHabitModal(e){
  if(!allocations.length){toast("Select At Least One Dimension And Assign Points.");return}
  if(allocations.length!==selected.length){toast("Every Selected Dimension Needs Positive Points.");return}
  const id=modal.dataset.editingHabit,h=id?H(id):null;
- if(h){h.name=name;h.points=allocations;h.archived=false;}
- else data.habits.push({id:uid(),name,poolId:null,points:allocations,active:true,archived:false});
+ if(h){h.name=name;h.points=allocations;h.archived=false;refreshHabitEligibility(h,today());}
+ else{const habit={id:uid(),name,poolId:null,points:allocations,active:true,archived:false};data.habits.push(habit);refreshHabitEligibility(habit,today())}
  closeHabitModal();save();toast(h?"Habit Updated.":"Habit Added.");
 }
-function toggleHabit(id){const h=H(id);if(!h)return;h.active=!(h.active&&!h.archived);h.archived=false;if(!h.active)habitAllocations(h).forEach(a=>expandedInactiveDimensions.add(a.dimensionId));lastTouchedHabitId=id;save();toast(h.active?"Habit activated.":"Habit made inactive.")}
+function toggleHabit(id){
+ const h=H(id);if(!h)return;
+ h.active=!(h.active&&!h.archived);h.archived=false;refreshHabitEligibility(h,today());
+ if(!h.active)habitAllocations(h).forEach(a=>expandedInactiveDimensions.add(a.dimensionId));
+ lastTouchedHabitId=id;save();toast(h.active?"Habit activated.":"Habit made inactive.");
+}
 function deleteHabit(id){
  const h=H(id);if(!h)return;
  const historyCount=Object.values(data.records||{}).reduce((count,record)=>count+(record.items?.[id]?1:0),0);
  const message='Permanently delete "'+h.name+'"'+(historyCount?' and its '+historyCount+' historical record'+(historyCount===1?'':'s'):'')+'? This cannot be undone.';
  if(!confirm(message))return;
  data.habits=data.habits.filter(item=>item.id!==id);
+ if(data.eligibility?.habits)delete data.eligibility.habits[id];
+ data.settings.pendingReconciliation=(data.settings.pendingReconciliation||[]).map(row=>({...row,habitIds:row.habitIds.filter(hid=>hid!==id)})).filter(row=>row.habitIds.length);
  Object.values(data.records||{}).forEach(record=>{if(record.items)delete record.items[id]});
  Object.keys(data.records||{}).forEach(date=>{if(!Object.keys(data.records[date].items||{}).length)delete data.records[date]});
  if(selectedStatsHabit===id)selectedStatsHabit=null;
@@ -625,14 +654,27 @@ function deleteHabit(id){
  save();toast("Habit And Its History Deleted.");
 }
 
-function statsDateRange(){const end=new Date(today()+"T12:00:00"),start=new Date(end);if(period==="1m")start.setDate(start.getDate()-29);else if(period==="3m")start.setDate(start.getDate()-89);else{const dates=Object.keys(data.records||{}).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).sort();if(dates.length)start.setTime(new Date(dates[0]+"T12:00:00").getTime())}return {start,end}}
-function inStatsRange(date){const {start,end}=statsDateRange(),dt=new Date(date+"T12:00:00");return !Number.isNaN(dt.getTime())&&dt>=start&&dt<=end}
-function statsRecords(){return Object.entries(data.records||{}).filter(([date])=>inStatsRange(date)).sort((a,b)=>a[0].localeCompare(b[0]))}
-function dailyRecordPoints(record){return Object.values(record?.items||{}).reduce((sum,item)=>sum+(item?.snapshot?pointsFor(item.snapshot,item.status):0),0)}
+function statsDateRange(){
+ const end=today(),settingStart=data.settings.trackingStartDate||end;
+ const periodStart=period==="1m"?shiftDateKey(end,-29):period==="3m"?shiftDateKey(end,-89):settingStart;
+ return {start:periodStart>settingStart?periodStart:settingStart,end};
+}
+function isSpecialDay(date){return data.records?.[date]?.specialDay===true}
+function isPerformanceDate(date){return validDateKey(date)&&date>=(data.settings.trackingStartDate||today())&&date<=today()&&!isSpecialDay(date)}
+function inStatsRange(date){const {start,end}=statsDateRange();return isPerformanceDate(date)&&date>=start&&date<=end}
+function statsRecords(){return Object.entries(data.records||{}).filter(([date,record])=>inStatsRange(date)&&Object.values(record.items||{}).some(item=>["completed","mva","missed"].includes(item?.status))).sort((a,b)=>a[0].localeCompare(b[0]))}
+function archiveRecords(){const {start,end}=statsDateRange();return Object.entries(data.records||{}).filter(([date,record])=>validDateKey(date)&&date>=start&&date<=end&&(Object.values(record.items||{}).some(item=>["completed","mva","missed"].includes(item?.status))||record.specialDay||String(record.specialNote||"").trim())).sort((a,b)=>a[0].localeCompare(b[0]))}
+function dailyRecordPoints(record){return Object.values(record?.items||{}).reduce((sum,item)=>sum+(item?.snapshot&&["completed","mva","missed"].includes(item.status)?pointsFor(item.snapshot,item.status):0),0)}
+function knownOutcomeCount(record){return Object.values(record?.items||{}).filter(item=>["completed","mva","missed"].includes(item?.status)).length}
+function isFullyLoggedDay(date,record){const expected=eligibleHabitIdsForDate(date);return expected.length>0&&expected.every(id=>["completed","mva","missed"].includes(record?.items?.[id]?.status))}
 function statsHabitRecords(id){const rows=[];statsRecords().forEach(([date,record])=>{const item=record.items?.[id];if(item?.snapshot&&["completed","mva","missed"].includes(item.status))rows.push({date,item})});return rows}
 function renderWeeklyDistribution(){
- const totals=Array(7).fill(0),counts=Array(7).fill(0),labels=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],{start,end}=statsDateRange(),cursor=new Date(start);
- while(cursor<=end){const day=(cursor.getDay()+6)%7;counts[day]++;const date=cursor.getFullYear()+"-"+String(cursor.getMonth()+1).padStart(2,"0")+"-"+String(cursor.getDate()).padStart(2,"0");if(data.records[date])totals[day]+=dailyRecordPoints(data.records[date]);cursor.setDate(cursor.getDate()+1)}
+ const totals=Array(7).fill(0),counts=Array(7).fill(0),labels=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],{start,end}=statsDateRange();
+ for(let date=start;date<=end;date=shiftDateKey(date,1)){
+  if(!isPerformanceDate(date))continue;
+  const day=(new Date(date+"T12:00:00").getDay()+6)%7,record=data.records[date];
+  counts[day]++;if(record)totals[day]+=dailyRecordPoints(record);
+ }
  const values=totals.map((v,i)=>counts[i]?v/counts[i]:0),max=Math.max(1,...values);
  $("#weeklyChart").innerHTML='<div class="weekly-bars">'+values.map((v,i)=>'<div class="weekly-bar-column"><div class="weekly-bar-value">'+(v?fmt(v):"—")+'</div><div class="weekly-bar-track"><i style="height:'+Math.max(v?3:0,v/max*100)+'%"></i></div><span>'+labels[i]+'</span></div>').join("")+'</div><div class="chart-footnote">Average points per weekday · '+(period==="1m"?"30 days":period==="3m"?"90 days":"all time")+'</div>';
 }
@@ -654,8 +696,48 @@ function renderHabitSpotlight(){
  const circles=daily.map((d,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(d.value).toFixed(1)+'" r="3.5" class="spotlight-point"><title>'+esc(d.date)+': '+fmt(d.value)+' points · '+esc(d.status)+'</title></circle>').join("");
  host.innerHTML='<svg class="spotlight-svg" data-preserve-case viewBox="0 0 '+w+' '+ht+'" role="img" aria-label="Daily points for '+esc(h.name)+'"><line x1="'+p.l+'" y1="'+y(0)+'" x2="'+(w-p.r)+'" y2="'+y(0)+'" class="chart-axis"/><line x1="'+p.l+'" y1="'+y(max/2)+'" x2="'+(w-p.r)+'" y2="'+y(max/2)+'" class="chart-gridline"/><polygon points="'+area+'" class="spotlight-area"/><polyline points="'+pts+'" class="spotlight-line"/>'+circles+'<text x="'+p.l+'" y="'+(ht-8)+'" class="chart-date-label">'+esc(daily[0].date.slice(5))+'</text><text x="'+(w-p.r)+'" y="'+(ht-8)+'" text-anchor="end" class="chart-date-label">'+esc(daily[daily.length-1].date.slice(5))+'</text></svg><div class="spotlight-summary"><strong>'+fmt(daily.reduce((n,v)=>n+v.value,0))+'</strong><span>points in selected period</span><span class="spotlight-record-count">'+daily.length+' recorded '+(daily.length===1?"day":"days")+'</span></div>';
 }
-function renderDailyArchive(){const rows=statsRecords().filter(([,r])=>Object.keys(r.items||{}).length).reverse();$("#dailyArchive").innerHTML=rows.length?rows.map(([date,record])=>{const count=Object.keys(record.items||{}).length,points=dailyRecordPoints(record),label=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"}).format(new Date(date+"T12:00:00"));return '<button type="button" class="archive-row" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+'</span><span class="archive-count">'+count+' '+(count===1?"habit":"habits")+'</span><strong class="archive-points">'+fmt(points)+' <small>pts</small></strong><span class="archive-open" aria-hidden="true">↗</span></button>'}).join(""):'<div class="stats-empty">No recorded days in this period.</div>'}
-function openArchiveDay(date){if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!data.records[date])return;selectedDate=date;view="tracker";render();window.scrollTo({top:0,behavior:"smooth"})}
+function renderArchiveTools(){
+ const input=$("#specialDayDate"),note=$("#specialDayNote"),button=$("#specialDayToggle"),status=$("#specialDayStatus");
+ if(!input||!note||!button)return;
+ input.max=today();input.value=archiveSelectedDate;
+ const record=data.records[archiveSelectedDate],special=!!record?.specialDay;
+ note.value=record?.specialNote||"";
+ button.textContent=special?"★ Special Day":"☆ Mark Special";
+ button.classList.toggle("is-special",special);button.setAttribute("aria-pressed",String(special));
+ status.textContent=special?"Excluded from performance statistics":"Preserves notes and existing entries";
+}
+function renderDailyArchive(){
+ renderArchiveTools();
+ const rows=archiveRecords().slice().reverse();
+ const recorded=rows.filter(([date,record])=>isPerformanceDate(date)&&knownOutcomeCount(record)>0).length;
+ const fully=rows.filter(([date,record])=>isPerformanceDate(date)&&isFullyLoggedDay(date,record)).length;
+ const special=rows.filter(([,record])=>record.specialDay).length;
+ $("#archiveSummary").textContent=recorded+" recorded · "+fully+" fully logged · "+special+" special";
+ $("#dailyArchive").innerHTML=rows.length?rows.map(([date,record])=>{
+  const count=knownOutcomeCount(record),points=dailyRecordPoints(record),label=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"}).format(new Date(date+"T12:00:00"));
+  const specialBadge=record.specialDay?'<span class="archive-special-badge">★ Special</span>':"";
+  const note=record.specialNote?'<small class="archive-note-preview">'+esc(record.specialNote)+'</small>':"";
+  return '<button type="button" class="archive-row '+(record.specialDay?'is-special':'')+'" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+specialBadge+note+'</span><span class="archive-count">'+(record.specialDay?"Excluded":count+" logged")+'</span><strong class="archive-points">'+(record.specialDay?"—":fmt(points)+' <small>pts</small>')+'</strong><span class="archive-open" aria-hidden="true">↗</span></button>';
+ }).join(""):'<div class="stats-empty">No recorded days in this period.</div>';
+}
+function saveSpecialDayNote(){
+ const date=archiveSelectedDate;if(!validDateKey(date)||date>today())return;
+ const value=$("#specialDayNote").value.trim(),record=data.records[date];
+ if(!record&&!value){toast("No Note To Save.");return}
+ const target=ensureDateRecord(date);target.specialNote=value;cleanupDateRecord(date);save();toast("Date Note Saved.");
+}
+function toggleSpecialDay(){
+ const date=archiveSelectedDate;if(!validDateKey(date)||date>today())return;
+ const record=ensureDateRecord(date);record.specialDay=!record.specialDay;
+ if(record.specialDay)data.settings.pendingReconciliation=(data.settings.pendingReconciliation||[]).filter(row=>row.date!==date);
+ else if(date<today()){
+  eligibleHabitIdsForDate(date).forEach(id=>{
+   if(!["completed","mva","missed"].includes(record.items?.[id]?.status)&&!(record.acknowledgedUnrecordedIds||[]).includes(id))queueReconciliationItem(date,id);
+  });
+ }
+ cleanupDateRecord(date);save();toast(record.specialDay?"Date Marked As Special.":"Date Restored To Normal Tracking.");
+}
+function openArchiveDay(date){if(!validDateKey(date)||!data.records[date])return;selectedDate=date;view="tracker";render();window.scrollTo({top:0,behavior:"smooth"})}
 function renderHabitLeaders(){
  const cats=[["completed","Most Completed","Full completions"],["mva","Most MVAed","Minimum viable actions"],["missed","Most Missed","Recorded misses"]],totals=new Map();
  statsRecords().forEach(([,record])=>Object.entries(record.items||{}).forEach(([id,item])=>{if(!["completed","mva","missed"].includes(item?.status))return;const v=totals.get(id)||{completed:0,mva:0,missed:0,name:item.snapshot?.name||H(id)?.name||"Unknown Habit"};v[item.status]++;totals.set(id,v)}));
@@ -668,7 +750,70 @@ function openDimensionInLibrary(id){
  const card=Array.from(document.querySelectorAll("[data-dimension-card]")).find(el=>el.dataset.dimensionCard===id);
  if(card){card.classList.add("dimension-card-focus");card.scrollIntoView({behavior:"smooth",block:"center"});}
 }
-function renderSettings(){$("#mvaRange").value=data.settings.mva;$("#mvaValue").textContent=Number(data.settings.mva).toFixed(2)+"×";$("#defaultBenchmark").value=data.settings.defaultBenchmark;$("#storageDetail").textContent=dataFolder?"Connected Folder. Automatic JSON Backup Is Enabled.":"Browser Storage Is Active. Folder-Based Saving Is Optional And Only Available In Supported Browsers."}
+function renderSettings(){
+ $("#mvaRange").value=data.settings.mva;$("#mvaValue").textContent=Number(data.settings.mva).toFixed(2)+"×";
+ $("#defaultBenchmark").value=data.settings.defaultBenchmark;
+ $("#trackingStartDate").value=data.settings.trackingStartDate||today();$("#trackingStartDate").max=today();
+ const pending=(data.settings.pendingReconciliation||[]).reduce((n,row)=>n+row.habitIds.length,0);
+ $("#reviewPending").hidden=pending===0;$("#reviewPending").textContent=pending?"Review "+pending+" Unrecorded":"No Unrecorded Entries";
+ $("#trackingStartDetail").textContent="Tracking from "+data.settings.trackingStartDate+". Earlier records are retained but excluded from performance statistics.";
+ $("#storageDetail").textContent=dataFolder?"Connected Folder. Automatic JSON Backup Is Enabled.":"Browser Storage Is Active. Folder-Based Saving Is Optional And Only Available In Supported Browsers.";
+}
+function setTrackingStartDate(){
+ const next=$("#trackingStartDate").value;
+ if(!validDateKey(next)||next>today()){toast("Choose A Valid Date Up To Today.");renderSettings();return}
+ if(next===data.settings.trackingStartDate)return;
+ if(!confirm("Change the tracking boundary to "+next+"? Existing records will be preserved, but statistics before this date will be excluded. Current active habits and dimensions will be used as the eligibility baseline from this date onward. Outstanding reconciliation will be recalculated on the next application launch.")){renderSettings();return}
+ data.settings.trackingStartDate=next;
+ data.eligibility=buildEligibilityBaseline(data.dimensions,data.habits,next,data.settings.mva);
+ data.settings.pendingReconciliation=[];data.settings.lastReconciledThrough=shiftDateKey(next,-1);
+ save();toast("Tracking Start Date Updated.");
+}
+function prepareReconciliationAtLaunch(){
+ const settings=data.settings,yesterday=shiftDateKey(today(),-1),start=settings.trackingStartDate||today();
+ let cursor=validDateKey(settings.lastReconciledThrough)?settings.lastReconciledThrough:shiftDateKey(today(),-1);
+ const pending=new Map();
+ (settings.pendingReconciliation||[]).forEach(row=>{
+  if(!validDateKey(row.date)||row.date<start||row.date>yesterday||isSpecialDay(row.date))return;
+  const ids=(row.habitIds||[]).filter(id=>H(id)&&eligibleHabitIdsForDate(row.date).includes(id)&&!["completed","mva","missed"].includes(data.records[row.date]?.items?.[id]?.status)&&!(data.records[row.date]?.acknowledgedUnrecordedIds||[]).includes(id));
+  if(ids.length)pending.set(row.date,new Set(ids));
+ });
+ let date=cursor<start?shiftDateKey(start,-1):cursor;
+ while(date<yesterday){
+  date=shiftDateKey(date,1);
+  if(date<start||isSpecialDay(date))continue;
+  const record=data.records[date],acknowledged=new Set(record?.acknowledgedUnrecordedIds||[]);
+  const missing=eligibleHabitIdsForDate(date).filter(id=>!["completed","mva","missed"].includes(record?.items?.[id]?.status)&&!acknowledged.has(id));
+  if(missing.length){const set=pending.get(date)||new Set();missing.forEach(id=>set.add(id));pending.set(date,set)}
+ }
+ settings.lastReconciledThrough=yesterday;
+ settings.pendingReconciliation=Array.from(pending.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([day,ids])=>({date:day,habitIds:Array.from(ids)}));
+ persistWithoutRender();
+ if(settings.pendingReconciliation.length)renderReconciliationModal();
+}
+function renderReconciliationModal(){
+ const host=$("#reconciliationModal"),pending=data.settings.pendingReconciliation||[];
+ if(!pending.length){host.hidden=true;host.innerHTML="";return}
+ const count=pending.reduce((n,row)=>n+row.habitIds.length,0);host.hidden=false;
+ host.innerHTML='<div class="reconciliation-backdrop" data-dismiss-reconciliation></div><section class="reconciliation-dialog" role="dialog" aria-modal="true" aria-labelledby="reconciliationTitle">'+
+  '<header class="reconciliation-header"><div><div class="eyebrow">HISTORICAL CHECK-IN</div><h2 id="reconciliationTitle">A Few Entries Were Left Open</h2><p>'+count+' unrecorded habit'+(count===1?'':'s')+' across '+pending.length+' day'+(pending.length===1?'':'s')+'. Enter what you remember; unknown is allowed.</p></div><button type="button" class="reconciliation-close" data-dismiss-reconciliation aria-label="Review later">×</button></header>'+
+  '<div class="reconciliation-days">'+pending.map(row=>{
+   const label=new Intl.DateTimeFormat("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric",timeZone:"Asia/Kolkata"}).format(new Date(row.date+"T12:00:00"));
+   return '<section class="reconciliation-day"><h3>'+esc(label)+'</h3>'+row.habitIds.map(id=>{
+    const h=H(id),p=eligibilityHabitPeriod(id,row.date),name=p?.name||h?.name||"Habit";
+    return '<div class="reconciliation-habit"><strong data-preserve-case>'+esc(name)+'</strong><div class="reconciliation-actions"><button type="button" data-reconcile-status="completed" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">Completed</button><button type="button" data-reconcile-status="mva" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">MVA</button><button type="button" data-reconcile-status="missed" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">Missed</button><button type="button" class="reconcile-unknown" data-reconcile-status="unknown" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">Leave Unknown</button></div></div>';
+   }).join("")+'</section>';
+  }).join("")+'</div><footer class="reconciliation-footer"><span>Unresolved entries will remain here next time you open Habit Radar.</span><button type="button" class="secondary-button" data-dismiss-reconciliation>Review Later</button></footer></section>';
+}
+function reconcileEntry(date,id,status){
+ const h=H(id);if(!h)return;const record=ensureDateRecord(date);
+ if(status==="unknown")record.acknowledgedUnrecordedIds=Array.from(new Set([...(record.acknowledgedUnrecordedIds||[]),id]));
+ else if(["completed","mva","missed"].includes(status)){
+  record.items[id]={status,snapshot:snapshotForHabitDate(h,date),updatedAt:new Date().toISOString()};
+  record.acknowledgedUnrecordedIds=(record.acknowledgedUnrecordedIds||[]).filter(x=>x!==id);
+ }
+ removePendingReconciliation(date,id);cleanupDateRecord(date);save();renderReconciliationModal();
+}
 function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function exportData(){download("habit-radar-backup-"+today()+".json",JSON.stringify(data,null,2));toast("Backup Exported.")}
 function importData(file){const reader=new FileReader();reader.onload=()=>{try{const parsed=validateBackupPayload(JSON.parse(reader.result));data=normalize(parsed);statsSpotlightHabit=null;selectedStatsHabit=null;expandedInactiveDimensions.clear();save();toast("Backup Restored.")}catch(e){console.warn("Backup import rejected",e);toast("Invalid Or Incompatible Backup File.")}};reader.onerror=()=>toast("Could Not Read Backup File.");reader.readAsText(file)}
@@ -683,7 +828,11 @@ async function saveFolder(){
  try{await folderWriteQueue;return true}catch(e){console.warn(e);toast("Folder Save Failed. Export A JSON Backup.");return false}
 }
 function restoreSample(){if(confirm("Replace The Current Workspace With The Original Sample Data? Export A Backup First If Needed.")){data=sampleData();save();toast("Sample Workspace Restored.")}}
-function resetAllData(){if(!confirm("Permanently erase all dimensions, habits, settings and historical records from this workspace? This cannot be undone. Export a backup first if needed."))return;data={version:2,visualVersion:2,settings:{mva:.25,defaultBenchmark:1000},dimensions:[],pools:[],habits:[],records:{}};selectedDate=today();selectedStatsHabit=null;statsSpotlightHabit=null;save();toast("All Workspace Data Cleared.")}
+function resetAllData(){
+ if(!confirm("Permanently erase all dimensions, habits, settings and historical records from this workspace? This cannot be undone. Export a backup first if needed."))return;
+ const start=today();data={version:3,visualVersion:2,settings:{mva:.25,defaultBenchmark:1000,trackingStartDate:start,lastReconciledThrough:shiftDateKey(start,-1),pendingReconciliation:[]},dimensions:[],pools:[],habits:[],records:{},eligibility:{dimensions:{},habits:{}}};
+ selectedDate=start;selectedStatsHabit=null;statsSpotlightHabit=null;save();toast("All Workspace Data Cleared.");
+}
 document.addEventListener("click",e=>{
  if(e.target.closest("#sidebarClose")){setSidebarOpen($(".app").classList.contains("sidebar-collapsed"));return}
  const close=e.target.closest("[data-close-library-modal]");if(close){closeHabitModal();return}
@@ -691,6 +840,8 @@ document.addEventListener("click",e=>{
  const back=e.target.closest("[data-back-tracker]");if(back){selectedDate=today();switchView("tracker");return}
  const backStats=e.target.closest("[data-back-stats]");if(backStats){switchView("stats");return}
  const archiveDay=e.target.closest("[data-open-day]");if(archiveDay){openArchiveDay(archiveDay.dataset.openDay);return}
+ const dismissReconcile=e.target.closest("[data-dismiss-reconciliation]");if(dismissReconcile){$("#reconciliationModal").hidden=true;return}
+ const reconcileButton=e.target.closest("[data-reconcile-status]");if(reconcileButton){reconcileEntry(reconcileButton.dataset.reconcileDate,reconcileButton.dataset.reconcileHabit,reconcileButton.dataset.reconcileStatus);return}
  const stateBtn=e.target.closest("[data-set-status]");if(stateBtn){cycle(stateBtn.dataset.habit,selectedDate||today(),stateBtn.dataset.setStatus);return}
  const habitRow=e.target.closest("[data-open-habit]");if(habitRow&&!e.target.closest("button,.status-dots")){openHabitStats(habitRow.dataset.openHabit);return}
  const dimensionRow=e.target.closest("[data-open-dimension]");if(dimensionRow){openDimensionInLibrary(dimensionRow.dataset.openDimension);return}
@@ -705,8 +856,15 @@ document.addEventListener("click",e=>{
  const editHabit=e.target.closest("[data-edit-habit]");if(editHabit){openHabitModal(editHabit.dataset.editHabit);return}
  const dim=e.target.closest("[data-edit-dimension]");if(dim){editDimension(dim.dataset.editDimension);return}
  const periodBtn=e.target.closest("[data-period]");if(periodBtn){period=periodBtn.dataset.period;$$("[data-period]").forEach(b=>b.classList.toggle("selected",b.dataset.period===period));renderActiveView();applyTitleCase();return}
+ const specialToggle=e.target.closest("#specialDayToggle");if(specialToggle){toggleSpecialDay();return}
+ const noteSave=e.target.closest("#saveSpecialDayNote");if(noteSave){saveSpecialDayNote();return}
+ const startSave=e.target.closest("#saveTrackingStartDate");if(startSave){setTrackingStartDate();return}
+ const pendingReview=e.target.closest("#reviewPending");if(pendingReview){renderReconciliationModal();return}
 });
 $("#libraryModal").addEventListener("submit",e=>{if(e.target.id==="libraryHabitForm")submitHabitModal(e)});
+$("#specialDayDate").addEventListener("change",e=>{const value=e.target.value;if(validDateKey(value)&&value<=today())archiveSelectedDate=value;renderArchiveTools()});
+$("#specialDayNote").addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();saveSpecialDayNote()}});
+
 $("#libraryModal").addEventListener("change",e=>{
  const check=e.target.closest("[data-modal-dimension]");if(!check)return;
  const points=Array.from($("#libraryModal").querySelectorAll("[data-modal-points]")).find(x=>x.dataset.modalPoints===check.dataset.modalDimension);
@@ -784,5 +942,6 @@ document.addEventListener("focusin",e=>{const t=e.target.closest&&e.target.close
 document.addEventListener("focusout",e=>{if(e.target.closest&&e.target.closest(".plate-screen [data-dim]"))setActiveDim(null)});
 render();
 try{if(localStorage.getItem("habitRadarSidebarOpen")==="0")setSidebarOpen(false)}catch(e){}
+prepareReconciliationAtLaunch();
 let lastDay=today();setInterval(()=>{if(view==="tracker"&&selectedDate===today()){const now=new Date(),day=today();$("#liveClock").innerHTML=clockMarkup(now);if(day!==lastDay){lastDay=day;renderTracker()}}},1000);
 })();
