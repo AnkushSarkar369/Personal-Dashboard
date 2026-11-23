@@ -1209,3 +1209,25 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
  #dimensionCards .dimension-actions{grid-column:1;display:grid;grid-template-columns:repeat(5,30px);grid-auto-rows:30px;justify-content:end;min-height:42px;padding:6px 12px;border-top:1px solid rgba(105,119,143,.18);border-left:0}
 }
 @media(prefers-reduced-motion:reduce){.daily-dimension-habits .daily-habit,.daily-progress-track i{transition:none}}
+
+/* Dimension controls: intentional 2×2 order — Add, Toggle, Grab, Delete. */
+#dimensionCards .dimension-actions{
+ display:grid;grid-template-columns:repeat(2,30px);grid-template-rows:repeat(2,30px);
+ grid-auto-flow:row;justify-content:center;align-content:center;align-items:center;
+ gap:7px 9px;min-width:0;padding:10px 7px;
+}
+#dimensionCards .dimension-add-habit{grid-column:1;grid-row:1;width:30px;height:30px}
+#dimensionCards .dimension-toggle{grid-column:2;grid-row:1}
+#dimensionCards .dimension-grab{grid-column:1;grid-row:2;cursor:grab;touch-action:none}
+#dimensionCards .dimension-grab:active{cursor:grabbing}
+#dimensionCards .dimension-grab svg{fill:currentColor;stroke:none}
+#dimensionCards .dimension-delete{grid-column:2;grid-row:2}
+#dimensionCards .dimension-control.dimension-grab:hover{border-color:rgba(146,163,190,.28);background:rgba(255,255,255,.06);color:#dce5f3}
+#dimensionCards .dimension-card.dragging-dimension{opacity:.42;transform:scale(.995)}
+#dimensionCards .dimension-card.drop-target-dimension{outline:1px solid color-mix(in srgb,var(--dimension-accent) 65%,transparent);outline-offset:3px}
+@media(max-width:1050px){
+ #dimensionCards .dimension-actions{grid-column:auto;grid-template-columns:repeat(2,30px);grid-template-rows:repeat(2,30px);padding:8px 5px}
+}
+@media(max-width:700px){
+ #dimensionCards .dimension-actions{grid-column:1;grid-template-columns:repeat(2,30px);grid-template-rows:repeat(2,30px);justify-content:end;min-height:0;padding:8px 12px}
+}
