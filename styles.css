@@ -1423,3 +1423,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
  .settings-card-data{grid-column:auto}
  .settings-reset-row{align-items:flex-start;flex-direction:column}
 }
+
+
+/* Special-day note editor is temporary; saved notes appear above the star on hover. */
+.archive-note-compact{display:flex;align-items:stretch;gap:6px;margin:3px 32px 8px 9px}
+.archive-note-compact textarea{flex:1;min-width:0;min-height:34px;max-height:76px;resize:vertical;padding:7px 8px;border:1px solid rgba(112,126,149,.2);border-radius:6px;background:rgba(8,12,18,.36);color:#dce1e9;font:10px/1.45 var(--font-sans)}
+.archive-note-compact textarea:focus{outline:none;border-color:rgba(180,154,255,.4)}
+.archive-note-compact textarea::placeholder{color:#748094}
+.archive-note-compact button{align-self:flex-end;padding:6px 9px;border:1px solid rgba(112,126,149,.2);border-radius:6px;background:rgba(255,255,255,.025);color:#bcb0e8;font-size:9px}
+.archive-row-star{position:relative;opacity:1}
+.archive-row-star:not(.is-special){opacity:0}
+.archive-entry-main:hover .archive-row-star:not(.is-special),.archive-row-star:not(.is-special):focus-visible{opacity:1}
+.archive-row-star.is-special::after{content:attr(data-note);position:absolute;z-index:30;left:50%;bottom:calc(100% + 9px);transform:translate(-50%,4px);width:max-content;max-width:min(240px,65vw);padding:7px 9px;border:1px solid rgba(245,190,103,.28);border-radius:6px;background:#171b24;color:#e8e1d3;font:10px/1.45 var(--font-sans);text-align:left;white-space:normal;overflow-wrap:anywhere;box-shadow:0 7px 22px rgba(0,0,0,.35);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s ease,transform .12s ease,visibility .12s ease}
+.archive-row-star.is-special[data-note]:not([data-note=""]):hover::after,.archive-row-star.is-special[data-note]:not([data-note=""]):focus-visible::after{opacity:1;visibility:visible;transform:translate(-50%,0)}
