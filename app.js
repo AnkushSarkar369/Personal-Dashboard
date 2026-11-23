@@ -4,7 +4,7 @@ const DIMENSION_COLORS=["#4ade80","#60a5fa","#fbbf24","#fb923c","#f87171","#a3e6
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const uid=()=> "hr-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
 const today=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day};
-let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,draggedHabitId=null,lastTouchedHabitId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
+let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,lastTouchedHabitId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
 function sampleStructure(){
  const dims=[["health","Health",COLORS[0]],["academics","Academics",COLORS[1]],["relationships","Relationships",COLORS[2]],["looks","Looksmaxxing",COLORS[3]]].map(([id,name,color])=>({id:"d-"+id,name,color,benchmark:1000,archived:false}));
  const pools=[
@@ -65,6 +65,7 @@ function normalize(x){
  const dimensions=(Array.isArray(x.dimensions)?x.dimensions:base.dims).map((d,i)=>({
   ...d,
   color:oldVisualVersion>=2?safeColor(d.color,DIMENSION_COLORS[i%DIMENSION_COLORS.length]):DIMENSION_COLORS[i%DIMENSION_COLORS.length],
+  active:d.active!==false&&!d.archived,
   archived:false
  }));
  const habits=(Array.isArray(x.habits)?x.habits:base.habits).map(h=>({
@@ -106,6 +107,7 @@ function applyTitleCase(){
  nodes.forEach(node=>{if(!node.parentElement.closest("script,style,[data-dimension-name],[data-preserve-case]"))node.nodeValue=titleCase(node.nodeValue)});
  document.querySelectorAll("[title],[aria-label],[placeholder]").forEach(el=>{
   if(el.matches("[data-open-dimension],[data-edit-dimension],[data-add-habit-dimension],[data-modal-points]"))return;
+  if(el.closest("[data-preserve-case]"))return;
   ["title","aria-label","placeholder"].forEach(attr=>{if(el.hasAttribute(attr))el.setAttribute(attr,titleCase(el.getAttribute(attr)))});
  });
 }
@@ -257,7 +259,7 @@ function setActiveDim(id){
  plate.querySelectorAll("[data-dim]").forEach(el=>el.classList.toggle("is-active",!!id&&el.dataset.dim===id));
 }
 function renderOverview(){
- const ds=data.dimensions.filter(d=>!d.archived);
+ const ds=data.dimensions.filter(d=>!d.archived&&d.active!==false);
  activeDim=null;$(".plate-screen").classList.remove("has-active");
  drawRadar(ds,ds.map(d=>rawPoints(d.id,period)));
 }
@@ -302,28 +304,50 @@ function drawRadar(ds,vals){
 }
 function renderTracker(){
  const date=selectedDate||today(),isToday=date===today(),rec=data.records[date],now=new Date(),dateParts=formatOrdinalDate(new Date(date+"T12:00:00")).split(", ");
- const active=activeHabits(),historical=Object.entries(rec?.items||{}).filter(([id,item])=>!active.some(h=>h.id===id)&&item?.snapshot).map(([id,item])=>({id,name:item.snapshot.name||H(id)?.name||"Archived Habit",historical:true}));
- const hs=[...active,...historical],resolved=resolvedCount(rec,hs);
+ const active=activeHabits(),dimensions=data.dimensions.filter(d=>!d.archived&&d.active!==false);
+ const groups=dimensions.map(d=>({
+  dimension:d,
+  habits:active.filter(h=>habitAllocations(h).some(a=>a.dimensionId===d.id)).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base",numeric:true}))
+ })).filter(group=>group.habits.length);
+ const trackedById=new Map();groups.forEach(group=>group.habits.forEach(h=>trackedById.set(h.id,h)));
+ const tracked=Array.from(trackedById.values()),trackedIds=new Set(tracked.map(h=>h.id));
+ const historical=Object.entries(rec?.items||{}).filter(([id,item])=>!trackedIds.has(id)&&item?.snapshot).map(([id,item])=>({id,name:item.snapshot.name||H(id)?.name||"Archived Habit",snapshot:item.snapshot,historical:true}));
+ const resolved=resolvedCount(rec,tracked);
  $("#liveDate").innerHTML='<span class="date-weekday">'+(isToday?"":'<span class="date-context">ARCHIVE / </span>')+esc(dateParts[0])+'</span><span class="date-rest">'+esc(dateParts.slice(1).join(", "))+'</span>';
  $("#liveClock").innerHTML=isToday?clockMarkup(now):'<button class="archive-back-button" data-back-stats>← Back To Statistics</button>';
- $("#todayProgressLabel").textContent=resolved+" / "+hs.length+" resolved";$("#todayProgressFill").style.transform="scaleX("+(hs.length?resolved/hs.length:0)+")";$("#trackerEmpty").hidden=hs.length>0;$("#trackerEmpty").textContent="No habits available for this day.";
- $("#trackerList").innerHTML=hs.map(h=>{const it=rec?.items[h.id],status=it?.status||"",accent=h.historical?(it?.snapshot?.points?.length>1?SPECIAL_COLOR:D(it?.snapshot?.points?.[0]?.dimensionId)?.color||"#aeb8c7"):habitAccent(h);
- return '<div class="daily-habit '+(status?"is-"+status:"")+(h.historical?" is-historical":"")+'" style="--habit-accent:'+esc(accent)+';" '+(h.historical?'':'data-open-habit="'+esc(h.id)+'" data-drag-habit="'+esc(h.id)+'"')+' tabindex="0" '+(h.historical?'':'role="link"')+' aria-label="'+esc(titleCase(h.name))+(h.historical?". Historical habit.":". Open statistics. Drag to reorder.")+'">'+(h.historical?'<span class="daily-grip historical-mark">◦</span>':'<span class="daily-grip" draggable="true" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>')+'<span class="daily-habit-name">'+esc(titleCase(h.name))+'</span><div class="status-dots" role="group" aria-label="'+esc(titleCase(h.name))+' status"><button class="status-dot completed '+(status==="completed"?"chosen":"")+'" data-set-status="completed" data-habit="'+esc(h.id)+'" aria-label="Completed" aria-pressed="'+(status==="completed")+'" title="Completed"></button><button class="status-dot mva '+(status==="mva"?"chosen":"")+'" data-set-status="mva" data-habit="'+esc(h.id)+'" aria-label="Minimum viable action" aria-pressed="'+(status==="mva")+'" title="Minimum viable action"></button><button class="status-dot missed '+(status==="missed"?"chosen":"")+'" data-set-status="missed" data-habit="'+esc(h.id)+'" aria-label="Not completed" aria-pressed="'+(status==="missed")+'" title="Not completed"></button></div></div>';}).join("");
-}
-function openHabitStats(id){if(!H(id))return;selectedStatsHabit=id;view="habit-stats";render();window.scrollTo({top:0,behavior:"smooth"})}
-function reorderHabits(fromId,toId){
- if(!fromId||!toId||fromId===toId)return;
- const ordered=activeHabits(),from=ordered.findIndex(h=>h.id===fromId),to=ordered.findIndex(h=>h.id===toId);
- if(from<0||to<0)return;
- const [moved]=ordered.splice(from,1);ordered.splice(to,0,moved);
- const activeIds=new Set(ordered.map(h=>h.id));let index=0;
- data.habits=data.habits.map(h=>activeIds.has(h.id)?ordered[index++]:h);
- save();toast("Habit Order Updated.");
-}
-function renderHabitStats(){
+ $("#todayProgressLabel").textContent=resolved+" / "+tracked.length+" resolved";
+ $("#todayProgressFill").style.transform="scaleX("+(tracked.length?resolved/tracked.length:0)+")";
+ $("#trackerEmpty").hidden=tracked.length+historical.length>0;
+ $("#trackerEmpty").textContent="No active habits in active dimensions. Configure them in the Habit Library.";
+ const rowMarkup=(h,dimension=null)=>{
+  const historicalRow=!!h.historical,it=rec?.items[h.id],status=it?.status||"",snapshot=historicalRow?h.snapshot:it?.snapshot;
+  const accent=historicalRow
+   ?(snapshot?.points?.length>1?SPECIAL_COLOR:D(snapshot?.points?.[0]?.dimensionId)?.color||"#aeb8c7")
+   :safeColor(dimension?.color,habitAccent(h));
+  const shared=!historicalRow&&habitAllocations(h).length>1;
+  return '<div class="daily-habit '+(status?"is-"+status:"")+(historicalRow?" is-historical":"")+'" style="--habit-accent:'+esc(accent)+';--dimension-accent:'+esc(accent)+';" '+(historicalRow?'':'data-open-habit="'+esc(h.id)+'"')+' data-preserve-case tabindex="0" '+(historicalRow?'':'role="link"')+' aria-label="'+esc(h.name)+(historicalRow?". Historical record.":". Open statistics.")+'">'+
+   '<span class="daily-habit-name" data-preserve-case>'+esc(h.name)+(shared?'<small class="daily-shared-label">Shared</small>':'')+'</span>'+
+   '<div class="status-dots" role="group" aria-label="Habit status">'+
+    '<button class="status-dot completed '+(status==="completed"?"chosen":"")+'" data-set-status="completed" data-habit="'+esc(h.id)+'" aria-label="Completed" aria-pressed="'+(status==="completed")+'" title="Completed"></button>'+
+    '<button class="status-dot mva '+(status==="mva"?"chosen":"")+'" data-set-status="mva" data-habit="'+esc(h.id)+'" aria-label="Minimum viable action" aria-pressed="'+(status==="mva")+'" title="Minimum viable action"></button>'+
+    '<button class="status-dot missed '+(status==="missed"?"chosen":"")+'" data-set-status="missed" data-habit="'+esc(h.id)+'" aria-label="Not completed" aria-pressed="'+(status==="missed")+'" title="Not completed"></button>'+
+   '</div></div>';
+ };
+ const sections=groups.map((group,index)=>{
+  const d=group.dimension,color=safeColor(d.color,DIMENSION_COLORS[index%DIMENSION_COLORS.length]);
+  return '<section class="daily-dimension-group" style="--dimension-accent:'+esc(color)+'">'+
+   '<header class="daily-dimension-heading"><span class="daily-dimension-index">'+dimIndex(index)+'</span>'+
+   '<div class="daily-dimension-copy"><h3 data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</h3><span>'+group.habits.length+' '+(group.habits.length===1?'habit':'habits')+'</span></div>'+
+   '<i class="daily-dimension-marker" aria-hidden="true"></i></header><div class="daily-dimension-habits">'+group.habits.map(h=>rowMarkup(h,d)).join("")+'</div></section>';
+ }).join("");
+ const historySection=historical.length
+  ?'<section class="daily-dimension-group daily-history-group"><header class="daily-dimension-heading"><span class="daily-dimension-index">↺</span><div class="daily-dimension-copy"><h3>Past Entries</h3><span>'+historical.length+' historical '+(historical.length===1?'record':'records')+'</span></div></header><div class="daily-dimension-habits">'+historical.sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base",numeric:true})).map(h=>rowMarkup(h)).join("")+'</div></section>'
+  :'';
+ $("#trackerList").innerHTML=sections+historySection;
+}function renderHabitStats(){
  const h=H(selectedStatsHabit);
  if(!h){$("#habitStatsName").textContent="Habit Statistics";$("#habitStatsName").style.color="";$("#habitStatsName").style.textShadow="";$("#habitStatsDescription").textContent="Select A Habit From The Daily Tracker.";$("#habitStatsCards").innerHTML="";$("#habitStatsTable").innerHTML='<div class="empty-state">No Habit Selected.</div>';return}
- $("#habitStatsName").textContent=titleCase(h.name);$("#habitStatsName").style.color=habitAccent(h);$("#habitStatsName").style.textShadow="0 0 22px "+habitAccent(h)+"33";
+ $("#habitStatsName").textContent=h.name;$("#habitStatsName").dataset.preserveCase="";$("#habitStatsName").style.color=habitAccent(h);$("#habitStatsName").style.textShadow="0 0 22px "+habitAccent(h)+"33";
  $("#habitStatsDescription").textContent=(habitAllocations(h).length>1?"Shared Habit · ":"")+"Individual Habit Progress";
  const now=new Date(today()+"T12:00:00+05:30"),start=new Date(now);
  if(period==="1m")start.setDate(start.getDate()-29);
@@ -354,7 +378,8 @@ function dimensionGlyph(i,n,color){
 function renderLibrary(){
  const touched=lastTouchedHabitId,host=$("#dimensionCards"),dims=data.dimensions.filter(d=>!d.archived);
  const linked=data.habits.filter(h=>habitAllocations(h).some(a=>dims.some(d=>d.id===a.dimensionId)));
- $("#libraryCounts").innerHTML='<strong>'+String(dims.length).padStart(2,"0")+'</strong> dimensions <span>·</span> <strong>'+String(linked.length).padStart(2,"0")+'</strong> habits';
+ const activeLinked=linked.filter(h=>h.active&&!h.archived);
+ $("#libraryCounts").innerHTML='<strong>'+String(dims.length).padStart(2,"0")+'</strong> dimensions <span>·</span> <strong>'+String(linked.length).padStart(2,"0")+'</strong> habits <span>·</span> <strong>'+String(activeLinked.length).padStart(2,"0")+'</strong> active';
  host.innerHTML=dims.map((d,di)=>{
   const color=safeColor(d.color,DIMENSION_COLORS[0]);
   const habits=data.habits.filter(h=>habitAllocations(h).some(a=>a.dimensionId===d.id));
@@ -368,9 +393,9 @@ function renderLibrary(){
   const rows=(list,isInactive)=>list.length?list.map(h=>{
    const shared=habitAllocations(h).length>1,locked=!h.active||h.archived;
    return '<article class="library-habit-row '+(isInactive?'is-inactive ':'')+(shared?'is-shared ':'')+(touched===h.id?'just-saved':'')+'" style="--habit-accent:'+esc(habitAccent(h))+'">'+
-    '<button class="library-habit-main" data-edit-habit="'+esc(h.id)+'" aria-label="Edit '+esc(h.name)+'">'+
+    '<button class="library-habit-main" data-preserve-case data-edit-habit="'+esc(h.id)+'" aria-label="Edit '+esc(h.name)+'">'+
      '<span class="library-habit-indicator" aria-hidden="true"></span>'+
-     '<span class="library-habit-name-wrap"><strong class="library-habit-name">'+esc(titleCase(h.name))+'</strong>'+(shared?'<small class="shared-label">Shared</small>':'')+'</span>'+
+     '<span class="library-habit-name-wrap"><strong class="library-habit-name" data-preserve-case>'+esc(h.name)+'</strong>'+(shared?'<small class="shared-label">Shared</small>':'')+'</span>'+
      '<span class="library-habit-points">'+fmt(allocatedPoints(h))+' <small>pts</small></span>'+
     '</button>'+
     '<button class="library-lock '+(locked?'is-locked':'is-unlocked')+'" data-toggle-habit="'+esc(h.id)+'" aria-label="'+(locked?'Activate ':'Deactivate ')+esc(h.name)+'" title="'+(locked?'Activate Habit':'Deactivate Habit')+'">'+lockIcon(locked)+'</button>'+
@@ -383,19 +408,26 @@ function renderLibrary(){
      '<div class="library-inactive-list">'+rows(inactive,true)+'</div>'+
     '</details>'
    :'';
-  return '<article class="dimension-card" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(color)+'">'+
+  const dimensionInactive=d.active===false;
+  const dimensionActions=
+   '<button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(d.name)+'" title="Add Habit">+</button>'+
+   '<button class="dimension-control dimension-toggle" data-toggle-dimension="'+esc(d.id)+'" data-preserve-case aria-label="'+(dimensionInactive?'Activate ':'Deactivate ')+esc(d.name)+'" title="'+(dimensionInactive?'Activate Dimension':'Deactivate Dimension')+'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9M6.2 6.2a8 8 0 1 0 11.6 0"></path></svg></button>'+
+   '<button class="dimension-control" data-move-dimension="'+esc(d.id)+'" data-direction="up" data-preserve-case aria-label="Move '+esc(d.name)+' up" title="Move Up" '+(di===0?'disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 14 6-6 6 6"></path></svg></button>'+
+   '<button class="dimension-control" data-move-dimension="'+esc(d.id)+'" data-direction="down" data-preserve-case aria-label="Move '+esc(d.name)+' down" title="Move Down" '+(di===dims.length-1?'disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6 6 6-6"></path></svg></button>'+
+   '<button class="dimension-control dimension-delete" data-delete-dimension="'+esc(d.id)+'" data-preserve-case aria-label="Delete '+esc(d.name)+'" title="Delete Dimension"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9 7V4.5h6V7m-8.5 0 1 13h9l1-13M10 10.5v6m4-6v6"></path></svg></button>';
+  return '<article class="dimension-card '+(dimensionInactive?'is-dimension-inactive':'')+'" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(color)+'">'+
    '<header class="dimension-card-header">'+
     '<div class="dimension-plate-head">'+
      '<div class="dimension-index-lockup"><span class="dimension-index">'+dimIndex(di)+'</span><i class="dimension-rule"></i></div>'+
      '<div class="dimension-identity-copy">'+
       '<button class="dimension-name-button" data-edit-dimension="'+esc(d.id)+'" aria-label="Rename '+esc(dimensionLabel(d.name))+'" title="Rename Dimension"><span class="plate-name" data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</span></button>'+
-      '<div class="dimension-summary"><span>'+active.length+' '+(active.length===1?'habit':'habits')+'</span><i>·</i><span>'+fmt(activePoints)+' pts</span></div>'+
+      '<div class="dimension-summary"><span>'+active.length+' '+(active.length===1?'habit':'habits')+'</span><i>·</i><span>'+fmt(activePoints)+' pts</span>'+(dimensionInactive?'<i>·</i><span class="dimension-state">Paused</span>':'')+'</div>'+
      '</div>'+
      '<div class="dimension-plate-glyph">'+dimensionGlyph(di,dims.length,color)+'</div>'+
     '</div>'+
    '</header>'+
    '<section class="dimension-habits" aria-label="Habits for '+esc(d.name)+'"><div class="library-habit-list">'+rows(active,false)+'</div>'+inactiveDisclosure+'</section>'+
-   '<aside class="dimension-actions"><button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(dimensionLabel(d.name))+'" title="Add Habit">+</button></aside>'+
+   '<aside class="dimension-actions">'+dimensionActions+'</aside>'+
   '</article>';
  }).join("")+'<button class="add-dimension-card" data-add-dimension><span class="add-dimension-plus">＋</span><strong>Add Dimension</strong><small>Create another area of life</small></button>';
  host.querySelectorAll("details[data-inactive-dimension]").forEach(details=>{
@@ -411,7 +443,7 @@ function nextDimensionColor(){const used=new Set(data.dimensions.map(d=>safeColo
 function addDimension(){
  const name=prompt("Dimension Name");if(name===null||!name.trim())return;
  if(data.dimensions.some(d=>d.name.trim().toLowerCase()===name.trim().toLowerCase())){toast("That Dimension Already Exists.");return}
- data.dimensions.push({id:uid(),name:name.trim(),color:nextDimensionColor(),benchmark:Number(data.settings.defaultBenchmark)||1000,archived:false});
+ data.dimensions.push({id:uid(),name:name.trim(),color:nextDimensionColor(),benchmark:Number(data.settings.defaultBenchmark)||1000,active:true,archived:false});
  save();toast("Dimension Added.");
 }
 function editDimension(id){
@@ -419,6 +451,38 @@ function editDimension(id){
  if(name===null)return;if(!name.trim()){toast("Dimension Name Cannot Be Empty.");return}
  if(data.dimensions.some(x=>x.id!==id&&x.name.trim().toLowerCase()===name.trim().toLowerCase())){toast("That Dimension Already Exists.");return}
  d.name=name.trim();save();toast("Dimension Renamed.");
+}
+function toggleDimension(id){
+ const d=D(id);if(!d)return;
+ d.active=d.active===false;
+ save();toast(d.active?"Dimension Activated.":"Dimension Deactivated.");
+}
+function moveDimension(id,direction){
+ const from=data.dimensions.findIndex(d=>d.id===id);if(from<0)return;
+ const to=from+(direction==="up"?-1:direction==="down"?1:0);
+ if(to<0||to>=data.dimensions.length||to===from)return;
+ const [dimension]=data.dimensions.splice(from,1);data.dimensions.splice(to,0,dimension);
+ save();toast("Dimension Order Updated.");
+}
+function deleteDimension(id){
+ const d=D(id);if(!d)return;
+ const assigned=data.habits.filter(h=>habitAllocations(h).some(a=>a.dimensionId===id));
+ const exclusive=assigned.filter(h=>habitAllocations(h).length===1),shared=assigned.length-exclusive.length;
+ const message='Delete the "'+d.name+'" dimension?'+
+  (assigned.length?'\n\n'+assigned.length+' linked habit'+(assigned.length===1?'':'s')+' will be affected. '+
+   (exclusive.length?exclusive.length+' habit'+(exclusive.length===1?'':'s')+' assigned only here will leave the current library. ':'')+
+   (shared?shared+' shared habit'+(shared===1?'':'s')+' will remain linked to their other dimensions. ':'')+
+   'Historical records will be retained.':'')+
+  '\n\nThis cannot be undone.';
+ if(!confirm(message))return;
+ const exclusiveIds=new Set(exclusive.map(h=>h.id));
+ data.habits=data.habits.filter(h=>!exclusiveIds.has(h.id));
+ data.habits.forEach(h=>{h.points=(h.points||[]).filter(point=>point.dimensionId!==id)});
+ data.dimensions=data.dimensions.filter(item=>item.id!==id);
+ if(exclusiveIds.has(selectedStatsHabit))selectedStatsHabit=null;
+ if(exclusiveIds.has(statsSpotlightHabit))statsSpotlightHabit=null;
+ expandedInactiveDimensions.delete(id);lastTouchedHabitId=null;
+ save();toast("Dimension Deleted. Historical Records Preserved.");
 }
 function openHabitModal(id,preselectedDimensionId=null){
  const h=id?H(id):null,dims=data.dimensions;if(!dims.length){toast("Create A Dimension Before Adding Habits.");return}
@@ -489,11 +553,11 @@ function renderHabitSpotlight(){
  })[0];
  statsSpotlightHabit=choice.habit.id;
  const h=choice.habit;
- $("#spotlightName").textContent=titleCase(h.name);
+ $("#spotlightName").textContent=h.name;$("#spotlightName").dataset.preserveCase="";
  const daily=choice.entries.map(x=>({date:x.date,value:pointsFor(x.item.snapshot,x.item.status),status:x.item.status}));
  const w=600,ht=260,p={l:28,r:16,t:18,b:34},max=Math.max(1,...daily.map(x=>x.value)),x=i=>p.l+(daily.length===1?(w-p.l-p.r)/2:i/(daily.length-1)*(w-p.l-p.r)),y=v=>ht-p.b-v/max*(ht-p.t-p.b),pts=daily.map((d,i)=>x(i)+","+y(d.value)).join(" "),area=p.l+","+y(0)+" "+pts+" "+x(daily.length-1)+","+y(0);
  const circles=daily.map((d,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(d.value).toFixed(1)+'" r="3.5" class="spotlight-point"><title>'+esc(d.date)+': '+fmt(d.value)+' points · '+esc(d.status)+'</title></circle>').join("");
- host.innerHTML='<svg class="spotlight-svg" viewBox="0 0 '+w+' '+ht+'" role="img" aria-label="Daily points for '+esc(h.name)+'"><line x1="'+p.l+'" y1="'+y(0)+'" x2="'+(w-p.r)+'" y2="'+y(0)+'" class="chart-axis"/><line x1="'+p.l+'" y1="'+y(max/2)+'" x2="'+(w-p.r)+'" y2="'+y(max/2)+'" class="chart-gridline"/><polygon points="'+area+'" class="spotlight-area"/><polyline points="'+pts+'" class="spotlight-line"/>'+circles+'<text x="'+p.l+'" y="'+(ht-8)+'" class="chart-date-label">'+esc(daily[0].date.slice(5))+'</text><text x="'+(w-p.r)+'" y="'+(ht-8)+'" text-anchor="end" class="chart-date-label">'+esc(daily[daily.length-1].date.slice(5))+'</text></svg><div class="spotlight-summary"><strong>'+fmt(daily.reduce((n,v)=>n+v.value,0))+'</strong><span>points in selected period</span><span class="spotlight-record-count">'+daily.length+' recorded '+(daily.length===1?"day":"days")+'</span></div>';
+ host.innerHTML='<svg class="spotlight-svg" data-preserve-case viewBox="0 0 '+w+' '+ht+'" role="img" aria-label="Daily points for '+esc(h.name)+'"><line x1="'+p.l+'" y1="'+y(0)+'" x2="'+(w-p.r)+'" y2="'+y(0)+'" class="chart-axis"/><line x1="'+p.l+'" y1="'+y(max/2)+'" x2="'+(w-p.r)+'" y2="'+y(max/2)+'" class="chart-gridline"/><polygon points="'+area+'" class="spotlight-area"/><polyline points="'+pts+'" class="spotlight-line"/>'+circles+'<text x="'+p.l+'" y="'+(ht-8)+'" class="chart-date-label">'+esc(daily[0].date.slice(5))+'</text><text x="'+(w-p.r)+'" y="'+(ht-8)+'" text-anchor="end" class="chart-date-label">'+esc(daily[daily.length-1].date.slice(5))+'</text></svg><div class="spotlight-summary"><strong>'+fmt(daily.reduce((n,v)=>n+v.value,0))+'</strong><span>points in selected period</span><span class="spotlight-record-count">'+daily.length+' recorded '+(daily.length===1?"day":"days")+'</span></div>';
 }
 function renderDailyArchive(){const rows=statsRecords().filter(([,r])=>Object.keys(r.items||{}).length).reverse();$("#dailyArchive").innerHTML=rows.length?rows.map(([date,record])=>{const count=Object.keys(record.items||{}).length,points=dailyRecordPoints(record),label=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"}).format(new Date(date+"T12:00:00"));return '<button type="button" class="archive-row" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+'</span><span class="archive-count">'+count+' '+(count===1?"habit":"habits")+'</span><strong class="archive-points">'+fmt(points)+' <small>pts</small></strong><span class="archive-open" aria-hidden="true">↗</span></button>'}).join(""):'<div class="stats-empty">No recorded days in this period.</div>'}
 function openArchiveDay(date){if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!data.records[date])return;selectedDate=date;view="tracker";render();window.scrollTo({top:0,behavior:"smooth"})}
@@ -533,12 +597,15 @@ document.addEventListener("click",e=>{
  const backStats=e.target.closest("[data-back-stats]");if(backStats){switchView("stats");return}
  const archiveDay=e.target.closest("[data-open-day]");if(archiveDay){openArchiveDay(archiveDay.dataset.openDay);return}
  const stateBtn=e.target.closest("[data-set-status]");if(stateBtn){cycle(stateBtn.dataset.habit,selectedDate||today(),stateBtn.dataset.setStatus);return}
- const habitRow=e.target.closest("[data-open-habit]");if(habitRow&&!e.target.closest("button,.daily-grip,.status-dots")){openHabitStats(habitRow.dataset.openHabit);return}
+ const habitRow=e.target.closest("[data-open-habit]");if(habitRow&&!e.target.closest("button,.status-dots")){openHabitStats(habitRow.dataset.openHabit);return}
  const dimensionRow=e.target.closest("[data-open-dimension]");if(dimensionRow){openDimensionInLibrary(dimensionRow.dataset.openDimension);return}
  const nav=e.target.closest("[data-view]");if(nav){switchView(nav.dataset.view);return}
  const go=e.target.closest("[data-go]");if(go){switchView(go.dataset.go);return}
  const addForDimension=e.target.closest("[data-add-habit-dimension]");if(addForDimension){openHabitModal(null,addForDimension.dataset.addHabitDimension);return}
  const addDim=e.target.closest("[data-add-dimension]");if(addDim){addDimension();return}
+ const removeDimension=e.target.closest("[data-delete-dimension]");if(removeDimension){deleteDimension(removeDimension.dataset.deleteDimension);return}
+ const moveDimensionButton=e.target.closest("[data-move-dimension]");if(moveDimensionButton){moveDimension(moveDimensionButton.dataset.moveDimension,moveDimensionButton.dataset.direction);return}
+ const toggleDimensionButton=e.target.closest("[data-toggle-dimension]");if(toggleDimensionButton){toggleDimension(toggleDimensionButton.dataset.toggleDimension);return}
  const removeHabit=e.target.closest("[data-delete-habit]");if(removeHabit){deleteHabit(removeHabit.dataset.deleteHabit);return}
  const toggle=e.target.closest("[data-toggle-habit]");if(toggle){toggleHabit(toggle.dataset.toggleHabit);return}
  const editHabit=e.target.closest("[data-edit-habit]");if(editHabit){openHabitModal(editHabit.dataset.editHabit);return}
@@ -563,18 +630,12 @@ $("#saveNow").onclick=()=>dataFolder?saveFolder().then(saved=>{if(saved)toast("S
 $("#resetData").onclick=restoreSample;
 $("#resetAllData").onclick=resetAllData;
 
-document.addEventListener("dragstart",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!e.target.closest(".daily-grip")){e.preventDefault();return}draggedHabitId=row.dataset.dragHabit;row.classList.add("dragging");if(e.dataTransfer){e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",draggedHabitId)}});
-document.addEventListener("dragover",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!draggedHabitId)return;e.preventDefault();$$( ".daily-habit.drop-target").forEach(x=>x.classList.remove("drop-target"));if(row.dataset.dragHabit!==draggedHabitId)row.classList.add("drop-target")});
-document.addEventListener("drop",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!draggedHabitId)return;e.preventDefault();reorderHabits(draggedHabitId,row.dataset.dragHabit);draggedHabitId=null;$$( ".daily-habit").forEach(x=>x.classList.remove("dragging","drop-target"))});
-document.addEventListener("dragend",()=>{draggedHabitId=null;$$( ".daily-habit").forEach(x=>x.classList.remove("dragging","drop-target"))});
 document.addEventListener("keydown",e=>{
   const dimensionRow=e.target.closest("[data-open-dimension]");
   if(dimensionRow&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openDimensionInLibrary(dimensionRow.dataset.openDimension);return}
-  const row=e.target.closest("[data-drag-habit]");if(!row||e.target.closest("button"))return;
-  if(e.key==="Enter"){e.preventDefault();openHabitStats(row.dataset.openHabit);return}
-  if(!e.altKey||!["ArrowUp","ArrowDown"].includes(e.key))return;
-  e.preventDefault();const list=activeHabits(),i=list.findIndex(h=>h.id===row.dataset.dragHabit),next=i+(e.key==="ArrowUp"?-1:1);
-  if(next>=0&&next<list.length)reorderHabits(row.dataset.dragHabit,list[next].id)
+  const row=e.target.closest("[data-open-habit]");
+  if(!row||e.target.closest("button,.status-dots"))return;
+  if(e.key==="Enter"){e.preventDefault();openHabitStats(row.dataset.openHabit)}
  });
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();dataFolder?saveFolder():exportData()}});
 if(window.matchMedia)window.matchMedia("(max-width:700px)").addEventListener("change",()=>{if(view==="overview")renderOverview()});
