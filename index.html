@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b0d12"><title>Habit Radar</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20261123-11">
-<link rel="stylesheet" href="styles.css?v=20261123-11">
+<link rel="stylesheet" href="styles.css?v=20261123-12">
 </head>
 <body>
 <svg class="icon-library" aria-hidden="true" focusable="false">
@@ -55,6 +55,7 @@
       <div class="daily-progress-meta"><span>Today's activity</span><span class="num" id="todayProgressLabel">0 / 0 resolved</span></div>
       <div class="daily-progress-track"><i id="todayProgressFill"></i></div>
     </div>
+    <div class="daily-status-guide" aria-label="Habit status legend"><span><i class="status-guide-dot completed"></i>Completed</span><span><i class="status-guide-dot mva"></i>Minimum action</span><span><i class="status-guide-dot missed"></i>Missed</span></div>
     <div id="trackerList" class="tracker-list"></div>
     <div class="daily-empty" id="trackerEmpty" hidden>No active habits. Configure your habits in the Library.</div>
   </div>
@@ -103,5 +104,5 @@
 </main></div>
 <div class="library-modal" id="libraryModal" hidden></div>
 <div class="toast" id="toast" role="status"></div>
-<script src="app.js?v=20261123-11"></script>
+<script src="app.js?v=20261123-12"></script>
 </body></html>
