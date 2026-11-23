@@ -713,29 +713,69 @@ function renderDailyArchive(){
  $("#dailyArchive").innerHTML=rows.length?rows.map(([date,record])=>{
   const count=knownOutcomeCount(record),points=dailyRecordPoints(record),label=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"}).format(new Date(date+"T12:00:00"));
   const special=!!record.specialDay;
-  const noteEditor=special&&editingSpecialDate===date?'<div class="archive-note-compact"><textarea rows="2" maxlength="500" data-special-note="'+esc(date)+'" aria-label="Special day note" placeholder="Reason for this day…">'+esc(record.specialNote||"")+'</textarea><button type="button" data-save-special-note="'+esc(date)+'">Save</button></div>':"";
   const note=String(record.specialNote||"").trim();
-  return '<div class="archive-entry"><div class="archive-entry-main"><button type="button" class="archive-row '+(special?'is-special':'')+'" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+'</span><span class="archive-count">'+(special?"Excluded":count+" logged")+'</span><strong class="archive-points">'+(special?"—":fmt(points)+' <small>pts</small>')+'</strong><span class="archive-open" aria-hidden="true">↗</span></button><button type="button" class="archive-row-star '+(special?'is-special':'')+'" data-toggle-special="'+esc(date)+'" data-note="'+(special?esc(note):"")+'" aria-label="'+(special?"Remove Special Day":"Mark Special Day")+'" aria-pressed="'+special+'">'+(special?"★":"☆")+'</button></div>'+noteEditor+'</div>';
+  const noteEditor=special&&editingSpecialDate===date?'<div class="archive-note-compact"><textarea rows="2" maxlength="500" data-special-note="'+esc(date)+'" aria-label="Reason for special day" placeholder="Why was this day special?">'+esc(record.specialNote||"")+'</textarea><button type="button" class="archive-note-save" data-save-special-note="'+esc(date)+'">Save</button></div>':"";
+  return '<div class="archive-entry"><div class="archive-entry-main"><button type="button" class="archive-row '+(special?'is-special':'')+'" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+'</span><span class="archive-count">'+(special?"Excluded":count+" logged")+'</span><strong class="archive-points">'+(special?"—":fmt(points)+' <small>pts</small>')+'</strong><span class="archive-open" aria-hidden="true">↗</span></button><button type="button" class="archive-row-star '+(special?'is-special':'')+'" data-toggle-special="'+esc(date)+'" aria-label="'+(special?"Remove Special Day":"Mark Special Day")+'" aria-pressed="'+special+'" '+(special&&note?'aria-describedby="archiveNoteTooltip"':"")+'>'+(special?"★":"☆")+'</button></div>'+noteEditor+'</div>';
  }).join(""):'<div class="stats-empty">No recorded days in this period.</div>';
 }
 function saveSpecialDayNote(date){
  if(!validDateKey(date)||date>today())return;
- const record=data.records[date];if(!record?.specialDay)return;
- record.specialNote=$('[data-special-note="'+date+'"]').value.trim();
+ const record=data.records[date],input=$('[data-special-note="'+date+'"]');
+ if(!record?.specialDay||!input)return;
+ record.specialNote=input.value.trim();
  editingSpecialDate=null;
+ hideArchiveNoteTooltip();
  save();toast("Special Day Note Saved.");
 }
 function toggleSpecialDay(date){
  if(!validDateKey(date)||date>today())return;
  archiveSelectedDate=date;
- const record=ensureDateRecord(date);record.specialDay=!record.specialDay;editingSpecialDate=record.specialDay?date:null;
- if(record.specialDay)data.settings.pendingReconciliation=(data.settings.pendingReconciliation||[]).filter(row=>row.date!==date);
+ hideArchiveNoteTooltip();
+ const record=ensureDateRecord(date);record.specialDay=!record.specialDay;
+ const shouldEdit=record.specialDay;
+ editingSpecialDate=shouldEdit?date:null;
+ if(shouldEdit)data.settings.pendingReconciliation=(data.settings.pendingReconciliation||[]).filter(row=>row.date!==date);
  else if(date<today()){
   eligibleHabitIdsForDate(date).forEach(id=>{
    if(!["completed","mva","missed"].includes(record.items?.[id]?.status)&&!(record.acknowledgedUnrecordedIds||[]).includes(id))queueReconciliationItem(date,id);
   });
  }
- cleanupDateRecord(date);save();toast(record.specialDay?"Date Marked As Special.":"Date Restored To Normal Tracking.");
+ cleanupDateRecord(date);save();
+ if(shouldEdit){
+  const input=$('[data-special-note="'+date+'"]');
+  if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length)}
+  toast("Add A Reason For This Day.");
+ }else toast("Date Restored To Normal Tracking.");
+}
+function getArchiveNoteTooltip(){
+ let tooltip=$("#archiveNoteTooltip");
+ if(!tooltip){
+  tooltip=document.createElement("div");
+  tooltip.id="archiveNoteTooltip";
+  tooltip.className="archive-note-tooltip";
+  tooltip.setAttribute("role","tooltip");
+  tooltip.hidden=true;
+  document.body.appendChild(tooltip);
+ }
+ return tooltip;
+}
+function showArchiveNoteTooltip(star){
+ const date=star?.dataset.toggleSpecial,record=date?data.records[date]:null,note=String(record?.specialNote||"").trim();
+ if(!note||!record?.specialDay){hideArchiveNoteTooltip();return}
+ const tooltip=getArchiveNoteTooltip();
+ tooltip.textContent=note;
+ tooltip.hidden=false;
+ tooltip.classList.remove("below");
+ const rect=star.getBoundingClientRect(),tooltipRect=tooltip.getBoundingClientRect();
+ const left=Math.min(window.innerWidth-tooltipRect.width/2-12,Math.max(tooltipRect.width/2+12,rect.left+rect.width/2));
+ let top=rect.top-tooltipRect.height-9;
+ if(top<8){top=rect.bottom+9;tooltip.classList.add("below")}
+ tooltip.style.left=left+"px";
+ tooltip.style.top=top+"px";
+}
+function hideArchiveNoteTooltip(){
+ const tooltip=$("#archiveNoteTooltip");
+ if(tooltip)tooltip.hidden=true;
 }
 function openArchiveDay(date){if(!validDateKey(date)||!data.records[date])return;selectedDate=date;view="tracker";render();window.scrollTo({top:0,behavior:"smooth"})}
 function renderHabitLeaders(){
@@ -833,6 +873,24 @@ function resetAllData(){
  const start=today();data={version:3,visualVersion:2,settings:{mva:.25,defaultBenchmark:1000,trackingStartDate:start,lastReconciledThrough:shiftDateKey(start,-1),pendingReconciliation:[]},dimensions:[],pools:[],habits:[],records:{},eligibility:{dimensions:{},habits:{}}};
  selectedDate=start;selectedStatsHabit=null;statsSpotlightHabit=null;save();toast("All Workspace Data Cleared.");
 }
+document.addEventListener("pointerover",e=>{
+ const star=e.target instanceof Element?e.target.closest(".archive-row-star.is-special"):null;
+ if(star)showArchiveNoteTooltip(star);
+});
+document.addEventListener("pointerout",e=>{
+ const star=e.target instanceof Element?e.target.closest(".archive-row-star.is-special"):null;
+ if(star&&!star.contains(e.relatedTarget))hideArchiveNoteTooltip();
+});
+document.addEventListener("focusin",e=>{
+ const star=e.target instanceof Element?e.target.closest(".archive-row-star.is-special"):null;
+ if(star)showArchiveNoteTooltip(star);
+});
+document.addEventListener("focusout",e=>{
+ const star=e.target instanceof Element?e.target.closest(".archive-row-star.is-special"):null;
+ if(star)hideArchiveNoteTooltip();
+});
+window.addEventListener("scroll",hideArchiveNoteTooltip,true);
+window.addEventListener("resize",hideArchiveNoteTooltip);
 document.addEventListener("click",e=>{
  if(e.target.closest("#sidebarClose")){setSidebarOpen($(".app").classList.contains("sidebar-collapsed"));return}
  const close=e.target.closest("[data-close-library-modal]");if(close){closeHabitModal();return}
