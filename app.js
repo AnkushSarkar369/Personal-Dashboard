@@ -4,8 +4,8 @@ const DIMENSION_COLORS=["#4ade80","#60a5fa","#fbbf24","#fb923c","#f87171","#a3e6
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const uid=()=> "hr-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
 const today=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day};
-let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,draggedHabitId=null,lastTouchedHabitId=null,expandedInactiveDimensions=new Set();
-function sampleData(){
+let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,draggedHabitId=null,lastTouchedHabitId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
+function sampleStructure(){
  const dims=[["health","Health",COLORS[0]],["academics","Academics",COLORS[1]],["relationships","Relationships",COLORS[2]],["looks","Looksmaxxing",COLORS[3]]].map(([id,name,color])=>({id:"d-"+id,name,color,benchmark:1000,archived:false}));
  const pools=[
   {id:"p-health",name:"Health",color:COLORS[0],dimensionIds:["d-health"],archived:false},
@@ -19,21 +19,50 @@ function sampleData(){
   ["h-connect","Meaningful conversation","p-social",15,"d-relationships"],["h-family","Time with family","p-social",10,"d-relationships"],
   ["h-groom","Grooming routine","p-presence",8,"d-looks"],["h-posture","Posture & mobility","p-presence",10,"d-looks"]
  ].map(([id,name,poolId,points,dimensionId])=>({id,name,poolId,points:[{dimensionId,points}],active:true,archived:false}));
+ return {dims,pools,habits,settings:{mva:.25,defaultBenchmark:1000}};
+}
+function sampleData(){
+ const {dims,pools,habits}=sampleStructure();
  const records={};const todayDate=new Date(today()+"T12:00:00"),cycle=["completed","completed","mva","completed","missed","completed","mva","completed"];
  for(let offset=89;offset>=0;offset--){const dt=new Date(todayDate);dt.setDate(dt.getDate()-offset);const date=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0"),items={};
  habits.forEach((h,index)=>{const seed=(offset*7+index*11+index*index)%19;if(seed===0||seed===7||seed===14)return;const status=cycle[(offset*3+index*5+Math.floor(offset/6))%cycle.length],p=pools.find(x=>x.id===h.poolId);items[h.id]={status,snapshot:{habitId:h.id,name:h.name,poolName:p?.name||"Habit Library",points:h.points.map(x=>({dimensionId:x.dimensionId,dimensionName:dims.find(d=>d.id===x.dimensionId)?.name||"Dimension",points:x.points})),mva:.25},updatedAt:new Date(dt.getTime()+index*60000).toISOString()};});
  if(Object.keys(items).length)records[date]={date,items};}
- return {version:2,visualVersion:2,settings:{mva:.25,defaultBenchmark:1000},dimensions:dims,pools,habits,records};
+ return {version:2,visualVersion:2,settings:{...sampleStructure().settings},dimensions:dims,pools,habits,records};
 }
 function safeColor(value,fallback){
  const v=String(value||"").trim();
  return /^#[0-9a-f]{6}$/i.test(v)?v:fallback;
 }
+function isPlainObject(value){return value!==null&&typeof value==="object"&&!Array.isArray(value)}
+function validateBackupPayload(value){
+ if(!isPlainObject(value))throw new Error("Backup must contain a JSON object.");
+ for(const key of ["dimensions","pools","habits"])if(value[key]!==undefined&&!Array.isArray(value[key]))throw new Error("Backup field '"+key+"' must be an array.");
+ if(value.settings!==undefined&&!isPlainObject(value.settings))throw new Error("Backup settings are malformed.");
+ if(value.records!==undefined&&!isPlainObject(value.records))throw new Error("Backup records are malformed.");
+ for(const [key,list] of [["dimensions",value.dimensions],["pools",value.pools],["habits",value.habits]]){
+  if(!list)continue;
+  list.forEach((item,index)=>{
+   if(!isPlainObject(item))throw new Error("Invalid "+key+" entry at position "+(index+1)+".");
+   if(key!=="pools"&&(typeof item.id!=="string"||typeof item.name!=="string"))throw new Error("Invalid "+key+" identity at position "+(index+1)+".");
+   if(key==="habits"&&item.points!==undefined){
+    if(!Array.isArray(item.points))throw new Error("Habit point allocations must be an array.");
+    item.points.forEach(point=>{if(!isPlainObject(point)||typeof point.dimensionId!=="string"||!Number.isFinite(Number(point.points)))throw new Error("A habit point allocation is malformed.")});
+   }
+  });
+ }
+ Object.entries(value.records||{}).forEach(([date,record])=>{
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!isPlainObject(record)||!isPlainObject(record.items))throw new Error("A historical record is malformed.");
+  Object.values(record.items).forEach(item=>{
+   if(!isPlainObject(item)||!["completed","mva","missed"].includes(item.status)||!isPlainObject(item.snapshot)||!Array.isArray(item.snapshot.points))throw new Error("A historical habit entry is malformed.");
+   item.snapshot.points.forEach(point=>{if(!isPlainObject(point)||typeof point.dimensionId!=="string"||!Number.isFinite(Number(point.points)))throw new Error("A historical point allocation is malformed.")});
+  });
+ });
+ return value;
+}
 function normalize(x){
- const base=sampleData();
- if(!x||typeof x!=="object")return base;
- const oldVisualVersion=Number(x.visualVersion)||0;
- const dimensions=(Array.isArray(x.dimensions)?x.dimensions:base.dimensions).map((d,i)=>({
+ if(!isPlainObject(x))return sampleData();
+ const base=sampleStructure(),oldVisualVersion=Number(x.visualVersion)||0;
+ const dimensions=(Array.isArray(x.dimensions)?x.dimensions:base.dims).map((d,i)=>({
   ...d,
   color:oldVisualVersion>=2?safeColor(d.color,DIMENSION_COLORS[i%DIMENSION_COLORS.length]):DIMENSION_COLORS[i%DIMENSION_COLORS.length],
   archived:false
@@ -45,10 +74,15 @@ function normalize(x){
   archived:false,
   poolId:h.poolId??null
  }));
- return {version:2,visualVersion:2,settings:Object.assign(base.settings,x.settings||{}),dimensions,pools:Array.isArray(x.pools)?x.pools:[],habits,records:x.records&&typeof x.records==="object"?x.records:{}};
+ const incomingSettings=isPlainObject(x.settings)?x.settings:{};
+ const mva=Number(incomingSettings.mva),benchmark=Number(incomingSettings.defaultBenchmark);
+ return {version:2,visualVersion:2,settings:{
+  mva:Number.isFinite(mva)?Math.min(.5,Math.max(.1,mva)):base.settings.mva,
+  defaultBenchmark:Number.isFinite(benchmark)?Math.max(1,benchmark):base.settings.defaultBenchmark
+ },dimensions,pools:Array.isArray(x.pools)?x.pools:[],habits,records:isPlainObject(x.records)?x.records:{}};
 }
 let data=sampleData();
-try{const raw=localStorage.getItem("habit-radar-state");if(raw)data=normalize(JSON.parse(raw));}catch(e){console.warn("Local storage unavailable",e)}
+try{const raw=localStorage.getItem("habit-radar-state");if(raw)data=normalize(validateBackupPayload(JSON.parse(raw)));}catch(e){console.warn("Saved data could not be loaded; using the sample workspace.",e)}
 function D(id){return data.dimensions.find(x=>x.id===id)}function P(id){return data.pools.find(x=>x.id===id)}function H(id){return data.habits.find(x=>x.id===id)}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function titleCase(s){
@@ -73,7 +107,6 @@ function ordinalDay(day){const n=Number(day),lastTwo=n%100;if(lastTwo>=11&&lastT
 function formatOrdinalDate(date){const parts=Object.fromEntries(new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",weekday:"long",month:"long",day:"numeric",year:"numeric"}).formatToParts(date).map(x=>[x.type,x.value]));return parts.weekday+", "+parts.month+" "+ordinalDay(parts.day)+", "+parts.year}
 function formatIstTime(date){return date.toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true}).replace(/\b(am|pm)\b/i,x=>x.toUpperCase())+" IST"}
 function clockMarkup(date){const time=formatIstTime(date).replace(/\sIST$/,"");return '<span class="clock-digits">'+esc(time)+'</span><span class="clock-zone">IST</span>'}
-function prefersReducedMotion(){return !!(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches)}
 function resolvedCount(record,habits){return habits.reduce((n,h)=>{const s=record?.items?.[h.id]?.status;return n+(s==="completed"||s==="mva"?1:0)},0)}
 function fmt(n){return (Math.round((Number(n)||0)*100)/100).toLocaleString(undefined,{maximumFractionDigits:2})}
 function toast(s){const e=$("#toast");e.textContent=titleCase(s);e.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>e.classList.remove("show"),2300)}
@@ -84,8 +117,7 @@ function activeHabits(){return data.habits.filter(h=>h.active&&!h.archived&&habi
 function snapshot(h){const p=P(h.poolId);return {habitId:h.id,name:h.name,poolName:p?.name||"Habit Library",points:(h.points||[]).map(x=>({dimensionId:x.dimensionId,dimensionName:D(x.dimensionId)?.name||"Archived Dimension",points:Number(x.points)||0})),mva:Number(data.settings.mva)||.25}}
 function pointsFor(s,status){const m=status==="completed"?1:status==="mva"?s.mva:0;return s.points.reduce((a,x)=>a+x.points*m,0)}
 function cycle(id,date,status){const h=H(id),rec=data.records[date]||(data.records[date]={date,items:{}}),previous=rec.items?.[id];if(!h&&!previous?.snapshot)return;if(!["completed","mva","missed"].includes(status))return;rec.items[id]={status,snapshot:previous?.snapshot||snapshot(h),updatedAt:new Date().toISOString()};save()}
-function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:00"),start=new Date(now);if(range==="1m")start.setDate(start.getDate()-29);if(range==="3m")start.setDate(start.getDate()-89);Object.entries(data.records).forEach(([date,rec])=>{const dt=new Date(date+"T12:00:00");if(range!=="all"&&(dt<start||dt>now))return;Object.values(rec.items||{}).forEach(it=>{const s=it.snapshot;if(!s)return;const mult=it.status==="completed"?1:it.status==="mva"?s.mva:0;s.points.forEach(x=>{if(x.dimensionId===dimId)total+=x.points*mult})})});return total}
-function percent(d,range){const ds=data.dimensions.filter(x=>!x.archived),max=Math.max(25,...ds.map(x=>rawPoints(x.id,range)));return Math.min(100,rawPoints(d.id,range)/(max*1.18)*100)}
+function rawPoints(dimId,range){let total=0;const now=new Date(today()+"T12:00:00"),start=new Date(now);if(range==="1m")start.setDate(start.getDate()-29);if(range==="3m")start.setDate(start.getDate()-89);Object.entries(data.records).forEach(([date,rec])=>{const dt=new Date(date+"T12:00:00");if(Number.isNaN(dt.getTime())||dt>now||(range!=="all"&&dt<start))return;Object.values(rec.items||{}).forEach(it=>{const s=it.snapshot;if(!s||!Array.isArray(s.points))return;const mult=it.status==="completed"?1:it.status==="mva"?s.mva:0;s.points.forEach(x=>{if(x.dimensionId===dimId)total+=Number(x.points||0)*mult})})});return total}
 function switchView(v){if(v==="stats"&&view!=="stats")statsSpotlightHabit=null;if(v==="tracker")selectedDate=today();view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
 function setSidebarOpen(open){
  const app=$(".app"),button=$("#sidebarClose");
@@ -96,7 +128,15 @@ function setSidebarOpen(open){
  button.setAttribute("aria-expanded",String(open));
  try{localStorage.setItem("habitRadarSidebarOpen",open?"1":"0")}catch(e){}
 }
-function render(){const statHabit=H(selectedStatsHabit);const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["","Habit Library"],stats:["","Statistics"],settings:["","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderOverview();renderTracker();renderHabitStats();renderLibrary();renderStats();renderSettings();applyTitleCase()}
+function renderActiveView(){
+ if(view==="overview")renderOverview();
+ else if(view==="tracker")renderTracker();
+ else if(view==="habit-stats")renderHabitStats();
+ else if(view==="library")renderLibrary();
+ else if(view==="stats")renderStats();
+ else if(view==="settings")renderSettings();
+}
+function render(){const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["","Habit Library"],stats:["","Statistics"],settings:["","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderActiveView();applyTitleCase()}
 let activeDim=null;
 function dimIndex(i){return String(i+1).padStart(2,"0")}
 function dimColor(d,i){return safeColor(d.color,DIMENSION_COLORS[i%DIMENSION_COLORS.length])}
@@ -315,13 +355,19 @@ function renderWeeklyDistribution(){
  $("#weeklyChart").innerHTML='<div class="weekly-bars">'+values.map((v,i)=>'<div class="weekly-bar-column"><div class="weekly-bar-value">'+(v?fmt(v):"—")+'</div><div class="weekly-bar-track"><i style="height:'+Math.max(v?3:0,v/max*100)+'%"></i></div><span>'+labels[i]+'</span></div>').join("")+'</div><div class="chart-footnote">Average points per weekday · '+(period==="1m"?"30 days":period==="3m"?"90 days":"all time")+'</div>';
 }
 function renderHabitSpotlight(){
- const all=data.habits.filter(h=>h.id&&Object.values(data.records||{}).some(r=>r.items?.[h.id]?.snapshot));
- if(!statsSpotlightHabit||!all.some(h=>h.id===statsSpotlightHabit)){const choices=all.length?all:data.habits;statsSpotlightHabit=choices.length?choices[Math.floor(Math.random()*choices.length)].id:null}
- const h=H(statsSpotlightHabit),host=$("#spotlightChart");
- if(!h){$("#spotlightName").textContent="No Habit History";host.innerHTML='<div class="stats-empty">Record a habit to see its history.</div>';return}
+ const host=$("#spotlightChart");
+ const eligible=data.habits.map(h=>({habit:h,entries:statsHabitRecords(h.id)})).filter(x=>x.entries.length);
+ if(!eligible.length){statsSpotlightHabit=null;$("#spotlightName").textContent="No Habit History";host.innerHTML='<div class="stats-empty">No habit activity in the selected period.</div>';return}
+ const selected=eligible.find(x=>x.habit.id===statsSpotlightHabit);
+ const choice=selected||eligible.slice().sort((a,b)=>{
+  const countDiff=b.entries.length-a.entries.length;if(countDiff)return countDiff;
+  const points=x=>x.entries.reduce((sum,row)=>sum+pointsFor(row.item.snapshot,row.item.status),0);
+  const scoreDiff=points(b)-points(a);return scoreDiff||a.habit.name.localeCompare(b.habit.name);
+ })[0];
+ statsSpotlightHabit=choice.habit.id;
+ const h=choice.habit;
  $("#spotlightName").textContent=titleCase(h.name);
- const daily=statsHabitRecords(h.id).map(x=>({date:x.date,value:pointsFor(x.item.snapshot,x.item.status),status:x.item.status}));
- if(!daily.length){host.innerHTML='<div class="stats-empty">No records for this habit in the selected period.</div>';return}
+ const daily=choice.entries.map(x=>({date:x.date,value:pointsFor(x.item.snapshot,x.item.status),status:x.item.status}));
  const w=600,ht=260,p={l:28,r:16,t:18,b:34},max=Math.max(1,...daily.map(x=>x.value)),x=i=>p.l+(daily.length===1?(w-p.l-p.r)/2:i/(daily.length-1)*(w-p.l-p.r)),y=v=>ht-p.b-v/max*(ht-p.t-p.b),pts=daily.map((d,i)=>x(i)+","+y(d.value)).join(" "),area=p.l+","+y(0)+" "+pts+" "+x(daily.length-1)+","+y(0);
  const circles=daily.map((d,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(d.value).toFixed(1)+'" r="3.5" class="spotlight-point"><title>'+esc(d.date)+': '+fmt(d.value)+' points · '+esc(d.status)+'</title></circle>').join("");
  host.innerHTML='<svg class="spotlight-svg" viewBox="0 0 '+w+' '+ht+'" role="img" aria-label="Daily points for '+esc(h.name)+'"><line x1="'+p.l+'" y1="'+y(0)+'" x2="'+(w-p.r)+'" y2="'+y(0)+'" class="chart-axis"/><line x1="'+p.l+'" y1="'+y(max/2)+'" x2="'+(w-p.r)+'" y2="'+y(max/2)+'" class="chart-gridline"/><polygon points="'+area+'" class="spotlight-area"/><polyline points="'+pts+'" class="spotlight-line"/>'+circles+'<text x="'+p.l+'" y="'+(ht-8)+'" class="chart-date-label">'+esc(daily[0].date.slice(5))+'</text><text x="'+(w-p.r)+'" y="'+(ht-8)+'" text-anchor="end" class="chart-date-label">'+esc(daily[daily.length-1].date.slice(5))+'</text></svg><div class="spotlight-summary"><strong>'+fmt(daily.reduce((n,v)=>n+v.value,0))+'</strong><span>points in selected period</span><span class="spotlight-record-count">'+daily.length+' recorded '+(daily.length===1?"day":"days")+'</span></div>';
@@ -333,7 +379,7 @@ function renderHabitLeaders(){
  statsRecords().forEach(([,record])=>Object.entries(record.items||{}).forEach(([id,item])=>{if(!["completed","mva","missed"].includes(item?.status))return;const v=totals.get(id)||{completed:0,mva:0,missed:0,name:item.snapshot?.name||H(id)?.name||"Unknown Habit"};v[item.status]++;totals.set(id,v)}));
  $("#habitLeaders").innerHTML=cats.map(([key,label,desc])=>{const max=Math.max(0,...Array.from(totals.values(),v=>v[key])),leaders=max?Array.from(totals.entries()).filter(([,v])=>v[key]===max).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([id,v])=>({id,...v})):[],visible=leaders.slice(0,2),remaining=leaders.length-visible.length;return '<section class="leader-category"><div class="leader-category-heading"><span>'+label+'</span><small>'+desc+'</small></div>'+(leaders.length?'<div class="leader-names">'+visible.map(v=>'<div class="leader-row"><strong>'+esc(titleCase(v.name))+'</strong><span>'+v[key]+'</span></div>').join("")+(remaining?'<div class="leader-more">+'+remaining+' more</div>':'')+'</div>':'<div class="leader-empty">No records</div>')+'</section>'}).join("");
 }
-function renderStats(){renderWeeklyDistribution();renderHabitSpotlight();renderDailyArchive();renderHabitLeaders();applyTitleCase()}
+function renderStats(){renderWeeklyDistribution();renderHabitSpotlight();renderDailyArchive();renderHabitLeaders()}
 function openDimensionInLibrary(id){
  const d=D(id);if(!d)return;
  view="library";render();
@@ -343,9 +389,17 @@ function openDimensionInLibrary(id){
 function renderSettings(){$("#mvaRange").value=data.settings.mva;$("#mvaValue").textContent=Number(data.settings.mva).toFixed(2)+"×";$("#defaultBenchmark").value=data.settings.defaultBenchmark;$("#storageDetail").textContent=dataFolder?"Connected Folder. Automatic JSON Backup Is Enabled.":"Browser Storage Is Active. Folder-Based Saving Is Optional And Only Available In Supported Browsers."}
 function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function exportData(){download("habit-radar-backup-"+today()+".json",JSON.stringify(data,null,2));toast("Backup Exported.")}
-function importData(file){const reader=new FileReader();reader.onload=()=>{try{data=normalize(JSON.parse(reader.result));save();toast("Backup Restored.")}catch(e){toast("Invalid Backup File.")}};reader.readAsText(file)}
+function importData(file){const reader=new FileReader();reader.onload=()=>{try{const parsed=validateBackupPayload(JSON.parse(reader.result));data=normalize(parsed);statsSpotlightHabit=null;selectedStatsHabit=null;expandedInactiveDimensions.clear();save();toast("Backup Restored.")}catch(e){console.warn("Backup import rejected",e);toast("Invalid Or Incompatible Backup File.")}};reader.onerror=()=>toast("Could Not Read Backup File.");reader.readAsText(file)}
 async function chooseFolder(){if(!window.showDirectoryPicker){toast("Folder Saving Is Not Supported Here. Use JSON Export/Import.");return}try{dataFolder=await window.showDirectoryPicker({mode:"readwrite"});await saveFolder();renderSettings();toast("Data Folder Connected.")}catch(e){if(e.name!=="AbortError")toast("Could Not Connect Folder.")}}
-async function saveFolder(){if(!dataFolder)return;try{const file=await dataFolder.getFileHandle("habit-radar.json",{create:true}),w=await file.createWritable();await w.write(JSON.stringify(data,null,2));await w.close()}catch(e){console.warn(e);toast("Folder Save Failed. Export A JSON Backup.")}}
+async function saveFolder(){
+ if(!dataFolder)return;
+ const folder=dataFolder,payload=JSON.stringify(data,null,2);
+ folderWriteQueue=folderWriteQueue.catch(()=>{}).then(async()=>{
+  const file=await folder.getFileHandle("habit-radar.json",{create:true}),w=await file.createWritable();
+  try{await w.write(payload);await w.close()}catch(e){try{await w.abort()}catch(_){}throw e}
+ });
+ try{await folderWriteQueue}catch(e){console.warn(e);toast("Folder Save Failed. Export A JSON Backup.")}
+}
 function restoreSample(){if(confirm("Replace The Current Workspace With The Original Sample Data? Export A Backup First If Needed.")){data=sampleData();save();toast("Sample Workspace Restored.")}}
 function resetAllData(){if(!confirm("Permanently erase all dimensions, habits, settings and historical records from this workspace? This cannot be undone. Export a backup first if needed."))return;data={version:2,visualVersion:2,settings:{mva:.25,defaultBenchmark:1000},dimensions:[],pools:[],habits:[],records:{}};selectedDate=today();selectedStatsHabit=null;statsSpotlightHabit=null;save();toast("All Workspace Data Cleared.")}
 document.addEventListener("click",e=>{
@@ -365,7 +419,7 @@ document.addEventListener("click",e=>{
  const toggle=e.target.closest("[data-toggle-habit]");if(toggle){toggleHabit(toggle.dataset.toggleHabit);return}
  const editHabit=e.target.closest("[data-edit-habit]");if(editHabit){openHabitModal(editHabit.dataset.editHabit);return}
  const dim=e.target.closest("[data-edit-dimension]");if(dim){editDimension(dim.dataset.editDimension);return}
- const periodBtn=e.target.closest("[data-period]");if(periodBtn){period=periodBtn.dataset.period;$$("[data-period]").forEach(b=>b.classList.toggle("selected",b.dataset.period===period));renderOverview();renderStats();renderHabitStats();return}
+ const periodBtn=e.target.closest("[data-period]");if(periodBtn){period=periodBtn.dataset.period;$$("[data-period]").forEach(b=>b.classList.toggle("selected",b.dataset.period===period));renderActiveView();applyTitleCase();return}
 });
 $("#libraryModal").addEventListener("submit",e=>{if(e.target.id==="libraryHabitForm")submitHabitModal(e)});
 $("#libraryModal").addEventListener("change",e=>{
@@ -399,7 +453,7 @@ document.addEventListener("keydown",e=>{
   if(next>=0&&next<list.length)reorderHabits(row.dataset.dragHabit,list[next].id)
  });
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();dataFolder?saveFolder():exportData()}});
-if(window.matchMedia)window.matchMedia("(max-width:700px)").addEventListener("change",()=>renderOverview());
+if(window.matchMedia)window.matchMedia("(max-width:700px)").addEventListener("change",()=>{if(view==="overview")renderOverview()});
 document.addEventListener("mouseover",e=>{if(view!=="overview")return;const t=e.target.closest&&e.target.closest(".plate-screen [data-dim]");setActiveDim(t?t.dataset.dim:null)});
 document.addEventListener("focusin",e=>{const t=e.target.closest&&e.target.closest(".plate-screen [data-dim]");if(t)setActiveDim(t.dataset.dim)});
 document.addEventListener("focusout",e=>{if(e.target.closest&&e.target.closest(".plate-screen [data-dim]"))setActiveDim(null)});
