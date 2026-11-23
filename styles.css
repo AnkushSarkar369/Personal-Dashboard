@@ -898,3 +898,206 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
  .plate-name{font-size:20px}
  .dimension-card{padding:14px 14px 12px}
 }
+
+
+/* Habit Library — horizontal dimension plates with compact, one-line habits. */
+#dimensionCards.dimension-grid{
+ display:grid;grid-template-columns:minmax(0,1fr);gap:12px;
+ max-width:1260px;margin:0 auto 60px;align-items:stretch;
+}
+#dimensionCards .dimension-card{
+ display:grid;grid-template-columns:minmax(205px,.86fr) minmax(300px,1.55fr) minmax(154px,.62fr);
+ align-items:stretch;gap:0;min-width:0;overflow:visible;padding:0;
+ border:1px solid rgba(93,107,130,.34);
+ border-left:3px solid var(--dimension-accent);
+ border-radius:13px;
+ background:linear-gradient(110deg,rgba(24,30,42,.82),rgba(16,21,30,.94) 44%,rgba(15,20,29,.94));
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 7px 22px rgba(0,0,0,.10);
+ transition:border-color .18s ease,background .18s ease,box-shadow .18s ease;
+}
+#dimensionCards .dimension-card:hover{
+ border-color:color-mix(in srgb,var(--dimension-accent) 32%,#354052);
+ border-left-color:var(--dimension-accent);
+ background:linear-gradient(110deg,rgba(27,34,47,.92),rgba(17,22,31,.97) 44%,rgba(15,20,29,.96));
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 9px 26px rgba(0,0,0,.14);
+}
+#dimensionCards .dimension-card-header{
+ display:flex;align-items:center;min-width:0;padding:16px 18px;
+ border:0;border-right:1px solid rgba(105,119,143,.24);
+}
+#dimensionCards .dimension-plate-head{
+ display:grid;grid-template-columns:40px minmax(0,1fr) 32px;
+ align-items:center;gap:13px;width:100%;min-width:0;
+}
+#dimensionCards .dimension-index-lockup{
+ display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+}
+#dimensionCards .dimension-index{
+ color:var(--dimension-accent);font-family:var(--font-serif);
+ font-size:31px;font-weight:400;line-height:1;letter-spacing:-.045em;
+ font-variant-numeric:lining-nums;
+}
+#dimensionCards .dimension-rule{
+ width:24px;height:1px;background:var(--dimension-accent);
+ opacity:.78;transition:width .2s var(--ease);
+}
+#dimensionCards .dimension-card:hover .dimension-rule{width:34px}
+#dimensionCards .dimension-identity-copy{min-width:0}
+#dimensionCards .dimension-name-button{
+ display:block;max-width:100%;padding:0;border:0;background:transparent;
+ color:inherit;text-align:left;cursor:pointer;
+}
+#dimensionCards .dimension-name-button .plate-name{
+ display:block;overflow:hidden;color:#f0edf8;font-family:var(--font-serif);
+ font-size:23px;font-weight:400;line-height:1.12;letter-spacing:-.035em;
+ text-overflow:ellipsis;white-space:nowrap;transition:color .16s ease;
+}
+#dimensionCards .dimension-name-button:hover .plate-name{color:#fff}
+#dimensionCards .dimension-name-button:focus-visible{
+ outline:1px solid var(--dimension-accent);outline-offset:4px;border-radius:3px;
+}
+#dimensionCards .dimension-summary{
+ display:flex;align-items:center;gap:7px;margin-top:7px;
+ color:#8995a8;font-family:var(--font-mono);font-size:9px;
+ font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+#dimensionCards .dimension-summary i{color:#536074;font-style:normal}
+#dimensionCards .dimension-plate-glyph{
+ display:grid;place-items:center;opacity:.86;transition:opacity .18s ease,transform .18s ease;
+}
+#dimensionCards .dimension-card:hover .dimension-plate-glyph{opacity:1;transform:scale(1.06)}
+#dimensionCards .dimension-glyph{width:31px;height:31px}
+#dimensionCards .dimension-habits{
+ display:flex;align-items:center;min-width:0;padding:9px 14px;
+ border-right:1px solid rgba(105,119,143,.24);
+}
+#dimensionCards .library-habit-list{display:grid;gap:0;width:100%;min-width:0}
+#dimensionCards .library-habit-row{
+ display:flex;align-items:center;gap:7px;min-width:0;min-height:35px;
+ padding:2px 3px;border:0;border-bottom:1px solid rgba(86,101,124,.22);
+ border-radius:0;background:transparent;box-shadow:none;opacity:1;
+ transition:background .16s ease,opacity .16s ease;
+}
+#dimensionCards .library-habit-row:last-child{border-bottom:0}
+#dimensionCards .library-habit-row:hover{
+ border:0;border-bottom:1px solid rgba(86,101,124,.22);
+ background:rgba(255,255,255,.026);box-shadow:none;
+}
+#dimensionCards .library-habit-row.just-saved{animation:library-saved 950ms var(--ease)}
+#dimensionCards .library-habit-main{
+ display:grid;grid-template-columns:10px minmax(0,1fr) auto;
+ align-items:center;gap:9px;flex:1;min-width:0;min-height:30px;
+ padding:3px 0;border:0;background:transparent;text-align:left;cursor:pointer;
+}
+#dimensionCards .library-habit-indicator{
+ width:8px;height:8px;border:1px solid var(--habit-accent);
+ border-radius:50%;background:color-mix(in srgb,var(--habit-accent) 20%,transparent);
+ opacity:.88;
+}
+#dimensionCards .library-habit-name-wrap{
+ display:flex;align-items:center;gap:7px;min-width:0;
+}
+#dimensionCards .library-habit-name{
+ display:block;overflow:hidden;color:#dce2ed;font-size:11.5px;
+ font-weight:500;letter-spacing:.005em;text-overflow:ellipsis;white-space:nowrap;
+ transition:color .16s ease;
+}
+#dimensionCards .library-habit-row:hover .library-habit-name{color:#fff}
+#dimensionCards .library-habit-points{
+ color:#a8b3c4;font-family:var(--font-mono);font-size:9px;
+ font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+#dimensionCards .library-habit-points small{color:#718096;font-size:8px}
+#dimensionCards .shared-label{
+ flex:none;padding:1px 4px;border:1px solid rgba(34,211,238,.24);
+ border-radius:4px;color:#65c9d6;font-size:7px;line-height:1.35;
+ letter-spacing:.06em;text-transform:uppercase;
+}
+#dimensionCards .library-lock{
+ width:25px;height:25px;flex:none;padding:0;border:1px solid transparent;
+ border-radius:6px;background:transparent;color:#78869a;
+}
+#dimensionCards .library-lock svg{
+ width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.7;
+ stroke-linecap:round;stroke-linejoin:round;
+}
+#dimensionCards .library-lock:hover{
+ border-color:color-mix(in srgb,var(--habit-accent) 34%,transparent);
+ background:color-mix(in srgb,var(--habit-accent) 8%,transparent);
+ color:var(--habit-accent);box-shadow:none;
+}
+#dimensionCards .library-habit-row.is-inactive{opacity:.72}
+#dimensionCards .library-habit-row.is-inactive .library-habit-name{color:#9aa5b5}
+#dimensionCards .library-habit-row.is-inactive:hover{opacity:1}
+#dimensionCards .library-group-empty{padding:10px 4px;color:#69778b;font-size:10px}
+#dimensionCards .dimension-actions{
+ display:grid;grid-template-columns:34px minmax(0,1fr);
+ align-items:center;align-content:center;gap:11px;min-width:0;padding:12px 13px;
+}
+#dimensionCards .dimension-add-habit{
+ width:32px;height:32px;border:1px solid rgba(142,157,181,.32);
+ border-radius:8px;background:rgba(12,16,23,.34);color:var(--dimension-accent);
+ font-size:19px;font-weight:350;line-height:1;
+}
+#dimensionCards .dimension-add-habit:hover{
+ border-color:var(--dimension-accent);
+ background:color-mix(in srgb,var(--dimension-accent) 9%,transparent);
+ transform:translateY(-1px);
+}
+#dimensionCards .library-inactive{align-self:center;min-width:0}
+#dimensionCards .library-inactive summary{
+ display:flex;align-items:center;justify-content:space-between;gap:7px;
+ padding:8px 0;color:#9ba6b8;font-size:9px;white-space:nowrap;
+ cursor:pointer;list-style:none;
+}
+#dimensionCards .library-inactive summary::-webkit-details-marker{display:none}
+#dimensionCards .inactive-chevron{
+ color:#7f8ba0;font-size:15px;line-height:1;
+ transition:transform .18s ease;
+}
+#dimensionCards .library-inactive[open] .inactive-chevron{transform:rotate(180deg)}
+#dimensionCards .library-inactive-list{
+ display:grid;gap:0;max-height:180px;overflow-y:auto;padding-top:5px;
+ border-top:1px solid rgba(92,106,129,.23);
+ scrollbar-width:thin;scrollbar-color:#3a4352 transparent;
+}
+#dimensionCards .library-inactive-list .library-habit-row{min-height:31px}
+#dimensionCards .library-inactive-list .library-habit-name{font-size:10px}
+#dimensionCards .library-inactive-list .library-habit-points{font-size:8px}
+#dimensionCards .add-dimension-card{
+ min-height:64px;flex-direction:row;justify-content:flex-start;gap:12px;
+ padding:12px 18px;border-radius:12px;
+}
+#dimensionCards .add-dimension-plus{width:28px;height:28px;font-size:17px}
+#dimensionCards .add-dimension-card small{margin-left:3px}
+@media(max-width:1050px){
+ #dimensionCards .dimension-card{
+  grid-template-columns:minmax(190px,.82fr) minmax(260px,1.35fr);
+ }
+ #dimensionCards .dimension-actions{
+  grid-column:1/-1;display:flex;justify-content:flex-end;
+  min-height:48px;padding:7px 14px;border-top:1px solid rgba(105,119,143,.2);
+ }
+ #dimensionCards .dimension-card-header{border-right:1px solid rgba(105,119,143,.24)}
+ #dimensionCards .dimension-habits{border-right:0}
+ #dimensionCards .library-inactive{min-width:130px}
+}
+@media(max-width:700px){
+ #dimensionCards.dimension-grid{gap:10px;margin-top:0}
+ #dimensionCards .dimension-card{grid-template-columns:minmax(0,1fr)}
+ #dimensionCards .dimension-card-header{
+  padding:13px 14px;border-right:0;border-bottom:1px solid rgba(105,119,143,.2);
+ }
+ #dimensionCards .dimension-plate-head{grid-template-columns:38px minmax(0,1fr) 30px;gap:12px}
+ #dimensionCards .dimension-index{font-size:28px}
+ #dimensionCards .dimension-name-button .plate-name{font-size:21px}
+ #dimensionCards .dimension-habits{padding:7px 12px;border-right:0}
+ #dimensionCards .dimension-habit-row{min-height:34px}
+ #dimensionCards .dimension-actions{
+  grid-column:1;justify-content:flex-start;min-height:44px;
+  padding:6px 12px;border-top:1px solid rgba(105,119,143,.18);
+ }
+ #dimensionCards .library-inactive{min-width:145px}
+ #dimensionCards .add-dimension-card{min-height:58px;flex-wrap:wrap}
+ #dimensionCards .add-dimension-card small{margin-left:0}
+}
