@@ -1436,3 +1436,56 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 .archive-entry-main:hover .archive-row-star:not(.is-special),.archive-row-star:not(.is-special):focus-visible{opacity:1}
 .archive-row-star.is-special::after{content:attr(data-note);position:absolute;z-index:30;left:50%;bottom:calc(100% + 9px);transform:translate(-50%,4px);width:max-content;max-width:min(240px,65vw);padding:7px 9px;border:1px solid rgba(245,190,103,.28);border-radius:6px;background:#171b24;color:#e8e1d3;font:10px/1.45 var(--font-sans);text-align:left;white-space:normal;overflow-wrap:anywhere;box-shadow:0 7px 22px rgba(0,0,0,.35);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s ease,transform .12s ease,visibility .12s ease}
 .archive-row-star.is-special[data-note]:not([data-note=""]):hover::after,.archive-row-star.is-special[data-note]:not([data-note=""]):focus-visible::after{opacity:1;visibility:visible;transform:translate(-50%,0)}
+
+
+/* Archive controls: visible stars, a compact temporary editor, and an unclipped note tooltip. */
+.archive-row-star,
+.archive-row-star:not(.is-special){
+ width:28px;min-width:28px;min-height:32px;flex:none;display:grid;place-items:center;
+ padding:0;border:0;border-radius:6px;background:transparent;color:#7f8b9e;
+ font:17px/1 var(--font-sans);opacity:1;cursor:pointer;
+ transition:color .14s ease,background-color .14s ease;
+}
+.archive-row-star:hover,.archive-row-star:focus-visible{color:#d7ddeb;background:rgba(255,255,255,.055);outline:none}
+.archive-row-star.is-special{color:#e8bd76;background:rgba(232,189,118,.075)}
+.archive-row-star.is-special:hover,.archive-row-star.is-special:focus-visible{color:#ffda9a;background:rgba(232,189,118,.13)}
+.archive-row-star.is-special::after{content:none!important;display:none!important}
+.archive-note-compact{
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:7px;
+ margin:4px 31px 8px 9px;padding:0;
+}
+.archive-note-compact textarea{
+ display:block;width:100%;min-width:0;min-height:42px;max-height:72px;resize:vertical;
+ padding:8px 9px;border:1px solid rgba(164,174,193,.2);border-radius:6px;
+ outline:none;background:rgba(8,12,18,.62);color:#e1e6ef;
+ font:11px/1.45 var(--font-sans);
+}
+.archive-note-compact textarea:focus{border-color:rgba(183,163,235,.58);box-shadow:0 0 0 2px rgba(183,163,235,.08)}
+.archive-note-compact textarea::placeholder{color:#788599}
+.archive-note-compact .archive-note-save{
+ min-height:32px;padding:0 11px;border:1px solid rgba(183,163,235,.26);border-radius:6px;
+ background:rgba(183,163,235,.09);color:#d8cafa;font-size:10px;font-weight:600;
+}
+.archive-note-compact .archive-note-save:hover{background:rgba(183,163,235,.16)}
+.archive-note-tooltip{
+ position:fixed;z-index:1000;left:0;top:0;transform:translateX(-50%);
+ display:block;width:max-content;max-width:min(280px,calc(100vw - 24px));
+ padding:8px 10px;border:1px solid rgba(232,189,118,.28);border-radius:7px;
+ background:#191e28;color:#ece5d8;box-shadow:0 8px 24px rgba(0,0,0,.38);
+ font:11px/1.45 var(--font-sans);white-space:normal;overflow-wrap:anywhere;
+ pointer-events:none;opacity:1;
+}
+.archive-note-tooltip[hidden]{display:none}
+.archive-note-tooltip::after{
+ content:"";position:absolute;left:50%;bottom:-5px;width:8px;height:8px;
+ border-right:1px solid rgba(232,189,118,.28);border-bottom:1px solid rgba(232,189,118,.28);
+ background:#191e28;transform:translateX(-50%) rotate(45deg);
+}
+.archive-note-tooltip.below::after{
+ top:-5px;bottom:auto;border:0;border-left:1px solid rgba(232,189,118,.28);
+ border-top:1px solid rgba(232,189,118,.28);
+}
+@media(max-width:760px){
+ .archive-note-compact{margin-right:30px}
+ .archive-note-tooltip{max-width:calc(100vw - 20px)}
+}
