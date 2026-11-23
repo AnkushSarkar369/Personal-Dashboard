@@ -678,11 +678,13 @@ function renderWeeklyDistribution(){
  const totals=Array(7).fill(0),counts=Array(7).fill(0),labels=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],{start,end}=statsDateRange();
  for(let date=start;date<=end;date=shiftDateKey(date,1)){
   if(!isPerformanceDate(date))continue;
-  const day=(new Date(date+"T12:00:00").getDay()+6)%7,record=data.records[date];
-  counts[day]++;if(record)totals[day]+=dailyRecordPoints(record);
+  const record=data.records[date];
+  if(!record||knownOutcomeCount(record)===0)continue;
+  const day=(new Date(date+"T12:00:00").getDay()+6)%7;
+  counts[day]++;totals[day]+=dailyRecordPoints(record);
  }
  const values=totals.map((v,i)=>counts[i]?v/counts[i]:0),max=Math.max(1,...values);
- $("#weeklyChart").innerHTML='<div class="weekly-bars">'+values.map((v,i)=>'<div class="weekly-bar-column"><div class="weekly-bar-value">'+(v?fmt(v):"—")+'</div><div class="weekly-bar-track"><i style="height:'+Math.max(v?3:0,v/max*100)+'%"></i></div><span>'+labels[i]+'</span></div>').join("")+'</div><div class="chart-footnote">Average points per weekday · '+(period==="1m"?"30 days":period==="3m"?"90 days":"all time")+'</div>';
+ $("#weeklyChart").innerHTML='<div class="weekly-bars">'+values.map((v,i)=>'<div class="weekly-bar-column"><div class="weekly-bar-value">'+(v?fmt(v):"—")+'</div><div class="weekly-bar-track"><i style="height:'+Math.max(v?3:0,v/max*100)+'%"></i></div><span>'+labels[i]+'</span></div>').join("")+'</div><div class="chart-footnote">Average points per recorded weekday · '+(period==="1m"?"30 days":period==="3m"?"90 days":"all time")+'</div>';
 }
 function renderHabitSpotlight(){
  const host=$("#spotlightChart");
