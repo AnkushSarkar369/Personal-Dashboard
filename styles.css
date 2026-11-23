@@ -1092,7 +1092,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
  #dimensionCards .dimension-index{font-size:28px}
  #dimensionCards .dimension-name-button .plate-name{font-size:21px}
  #dimensionCards .dimension-habits{padding:7px 12px;border-right:0}
- #dimensionCards .dimension-habit-row{min-height:34px}
+ #dimensionCards .library-habit-row{min-height:34px}
  #dimensionCards .dimension-actions{
   grid-column:1;justify-content:flex-start;min-height:44px;
   padding:6px 12px;border-top:1px solid rgba(105,119,143,.18);
@@ -1100,4 +1100,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
  #dimensionCards .library-inactive{min-width:145px}
  #dimensionCards .add-dimension-card{min-height:58px;flex-wrap:wrap}
  #dimensionCards .add-dimension-card small{margin-left:0}
+}
+
+#dimensionCards .library-habit-main:focus-visible,
+#dimensionCards .library-lock:focus-visible,
+#dimensionCards .library-inactive summary:focus-visible{
+ outline:1px solid var(--dimension-accent);outline-offset:3px;border-radius:4px;
 }
