@@ -4,7 +4,7 @@ const DIMENSION_COLORS=["#4ade80","#60a5fa","#fbbf24","#fb923c","#f87171","#a3e6
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const uid=()=> "hr-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
 const today=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day};
-let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,draggedHabitId=null,lastTouchedHabitId=null;
+let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,draggedHabitId=null,lastTouchedHabitId=null,expandedInactiveDimensions=new Set();
 function sampleData(){
  const dims=[["health","Health",COLORS[0]],["academics","Academics",COLORS[1]],["relationships","Relationships",COLORS[2]],["looks","Looksmaxxing",COLORS[3]]].map(([id,name,color])=>({id:"d-"+id,name,color,benchmark:1000,archived:false}));
  const pools=[
@@ -206,15 +206,54 @@ function renderLibrary(){
  const linked=data.habits.filter(h=>habitAllocations(h).some(a=>dims.some(d=>d.id===a.dimensionId)));
  $("#libraryCounts").innerHTML='<strong>'+String(dims.length).padStart(2,"0")+'</strong> dimensions <span>·</span> <strong>'+String(linked.length).padStart(2,"0")+'</strong> habits';
  host.innerHTML=dims.map((d,di)=>{
+  const color=safeColor(d.color,DIMENSION_COLORS[0]);
   const habits=data.habits.filter(h=>habitAllocations(h).some(a=>a.dimensionId===d.id));
   const active=habits.filter(h=>h.active&&!h.archived).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"}));
   const inactive=habits.filter(h=>!h.active||h.archived).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"}));
+  const allocatedPoints=h=>Number(habitAllocations(h).find(a=>a.dimensionId===d.id)?.points)||0;
+  const activePoints=active.reduce((sum,h)=>sum+allocatedPoints(h),0);
+  const lockIcon=locked=>locked
+   ?'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>'
+   :'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7.5-2"></path><path d="M16.5 5.5V10"></path></svg>';
   const rows=(list,isInactive)=>list.length?list.map(h=>{
-   const allocation=habitAllocations(h).find(a=>a.dimensionId===d.id),shared=habitAllocations(h).length>1,locked=!h.active||h.archived;
-   return '<article class="library-habit-row '+(isInactive?'is-inactive ':'')+(shared?'is-shared':'')+(touched===h.id?' just-saved':'')+'" style="--habit-accent:'+esc(habitAccent(h))+'"><button class="library-habit-main" data-edit-habit="'+esc(h.id)+'" aria-label="Edit '+esc(h.name)+'"><span class="library-habit-copy"><strong>'+esc(titleCase(h.name))+'</strong><small>'+fmt(allocation?.points||0)+' pts'+(shared?' <span class="shared-label">Shared</span>':'')+'</small></span></button><button class="library-lock '+(locked?'is-locked':'is-unlocked')+'" data-toggle-habit="'+esc(h.id)+'" aria-label="'+(locked?'Activate ':'Deactivate ')+esc(h.name)+'" title="'+(locked?'Unlock Habit':'Lock Habit')+'">'+(locked?'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7.5-2"></path><path d="M16.5 5.5V10"></path></svg>')+'</button></article>';
-  }).join(""):'<div class="library-group-empty">'+(isInactive?'No Inactive Habits':'No Active Habits')+'</div>';
-  return '<article class="dimension-card" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(safeColor(d.color,DIMENSION_COLORS[0]))+'"><header class="dimension-card-header"><div class="dimension-plate-head"><div class="dimension-plate-meta"><span class="dimension-index">'+dimIndex(di)+'</span><i class="dimension-rule"></i></div><button class="dimension-name-button" data-edit-dimension="'+esc(d.id)+'" aria-label="Rename '+esc(dimensionLabel(d.name))+'" title="Rename Dimension"><span class="plate-name" data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</span></button></div><div class="dimension-header-tools">'+dimensionGlyph(di,dims.length,safeColor(d.color,DIMENSION_COLORS[0]))+'<button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(dimensionLabel(d.name))+'" title="Add Habit">+</button></div></header><section class="library-group"><div class="library-group-heading"><span>Active</span><span>'+active.length+'</span></div><div class="library-habit-list">'+rows(active,false)+'</div></section><section class="library-group inactive-group"><div class="library-group-heading"><span>Inactive</span><span>'+inactive.length+'</span></div><div class="library-habit-list">'+rows(inactive,true)+'</div></section></article>';
+   const shared=habitAllocations(h).length>1,locked=!h.active||h.archived;
+   return '<article class="library-habit-row '+(isInactive?'is-inactive ':'')+(shared?'is-shared ':'')+(touched===h.id?'just-saved':'')+'" style="--habit-accent:'+esc(habitAccent(h))+'">'+
+    '<button class="library-habit-main" data-edit-habit="'+esc(h.id)+'" aria-label="Edit '+esc(h.name)+'">'+
+     '<span class="library-habit-indicator" aria-hidden="true"></span>'+
+     '<span class="library-habit-name-wrap"><strong class="library-habit-name">'+esc(titleCase(h.name))+'</strong>'+(shared?'<small class="shared-label">Shared</small>':'')+'</span>'+
+     '<span class="library-habit-points">'+fmt(allocatedPoints(h))+' <small>pts</small></span>'+
+    '</button>'+
+    '<button class="library-lock '+(locked?'is-locked':'is-unlocked')+'" data-toggle-habit="'+esc(h.id)+'" aria-label="'+(locked?'Activate ':'Deactivate ')+esc(h.name)+'" title="'+(locked?'Activate Habit':'Deactivate Habit')+'">'+lockIcon(locked)+'</button>'+
+   '</article>';
+  }).join(""):'<div class="library-group-empty">'+(isInactive?'No inactive habits.':'No active habits yet.')+'</div>';
+  const inactiveDisclosure=inactive.length
+   ?'<details class="library-inactive" data-inactive-dimension="'+esc(d.id)+'"'+(expandedInactiveDimensions.has(d.id)?' open':'')+'>'+
+     '<summary><span>'+inactive.length+' inactive</span><span class="inactive-chevron" aria-hidden="true">⌄</span></summary>'+
+     '<div class="library-inactive-list">'+rows(inactive,true)+'</div>'+
+    '</details>'
+   :'';
+  return '<article class="dimension-card" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(color)+'">'+
+   '<header class="dimension-card-header">'+
+    '<div class="dimension-plate-head">'+
+     '<div class="dimension-index-lockup"><span class="dimension-index">'+dimIndex(di)+'</span><i class="dimension-rule"></i></div>'+
+     '<div class="dimension-identity-copy">'+
+      '<button class="dimension-name-button" data-edit-dimension="'+esc(d.id)+'" aria-label="Rename '+esc(dimensionLabel(d.name))+'" title="Rename Dimension"><span class="plate-name" data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</span></button>'+
+      '<div class="dimension-summary"><span>'+active.length+' '+(active.length===1?'habit':'habits')+'</span><i>·</i><span>'+fmt(activePoints)+' pts</span></div>'+
+     '</div>'+
+     '<div class="dimension-plate-glyph">'+dimensionGlyph(di,dims.length,color)+'</div>'+
+    '</div>'+
+   '</header>'+
+   '<section class="dimension-habits" aria-label="Active habits for '+esc(d.name)+'"><div class="library-habit-list">'+rows(active,false)+'</div></section>'+
+   '<aside class="dimension-actions"><button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(dimensionLabel(d.name))+'" title="Add Habit">+</button>'+inactiveDisclosure+'</aside>'+
+  '</article>';
  }).join("")+'<button class="add-dimension-card" data-add-dimension><span class="add-dimension-plus">＋</span><strong>Add Dimension</strong><small>Create another area of life</small></button>';
+ host.querySelectorAll("details[data-inactive-dimension]").forEach(details=>{
+  details.addEventListener("toggle",()=>{
+   const id=details.dataset.inactiveDimension;
+   if(details.open)expandedInactiveDimensions.add(id);
+   else expandedInactiveDimensions.delete(id);
+  });
+ });
  lastTouchedHabitId=null;
 }
 function nextDimensionColor(){const used=new Set(data.dimensions.map(d=>safeColor(d.color,"")));return DIMENSION_COLORS.find(c=>!used.has(c))||DIMENSION_COLORS[data.dimensions.length%DIMENSION_COLORS.length]}
@@ -262,7 +301,7 @@ function submitHabitModal(e){
  else data.habits.push({id:uid(),name,poolId:null,points:allocations,active:true,archived:false});
  closeHabitModal();save();toast(h?"Habit Updated.":"Habit Added.");
 }
-function toggleHabit(id){const h=H(id);if(!h)return;h.active=!(h.active&&!h.archived);h.archived=false;lastTouchedHabitId=id;save();toast(h.active?"Habit activated.":"Habit made inactive.")}
+function toggleHabit(id){const h=H(id);if(!h)return;h.active=!(h.active&&!h.archived);h.archived=false;if(!h.active)habitAllocations(h).forEach(a=>expandedInactiveDimensions.add(a.dimensionId));lastTouchedHabitId=id;save();toast(h.active?"Habit activated.":"Habit made inactive.")}
 
 function statsDateRange(){const end=new Date(today()+"T12:00:00"),start=new Date(end);if(period==="1m")start.setDate(start.getDate()-29);else if(period==="3m")start.setDate(start.getDate()-89);else{const dates=Object.keys(data.records||{}).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).sort();if(dates.length)start.setTime(new Date(dates[0]+"T12:00:00").getTime())}return {start,end}}
 function inStatsRange(date){const {start,end}=statsDateRange(),dt=new Date(date+"T12:00:00");return !Number.isNaN(dt.getTime())&&dt>=start&&dt<=end}
