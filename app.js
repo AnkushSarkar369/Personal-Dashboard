@@ -4,7 +4,7 @@ const DIMENSION_COLORS=["#4ade80","#60a5fa","#fbbf24","#fb923c","#f87171","#a3e6
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const uid=()=> "hr-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
 const today=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day};
-let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,lastTouchedHabitId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
+let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,lastTouchedHabitId=null,draggedDimensionId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
 function sampleStructure(){
  const dims=[["health","Health",COLORS[0]],["academics","Academics",COLORS[1]],["relationships","Relationships",COLORS[2]],["looks","Looksmaxxing",COLORS[3]]].map(([id,name,color])=>({id:"d-"+id,name,color,benchmark:1000,archived:false}));
  const pools=[
@@ -412,8 +412,7 @@ function renderLibrary(){
   const dimensionActions=
    '<button class="dimension-add-habit" data-preserve-case data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(d.name)+'" title="Add Habit">+</button>'+
    '<button class="dimension-control dimension-toggle" data-toggle-dimension="'+esc(d.id)+'" data-preserve-case aria-label="'+(dimensionInactive?'Activate ':'Deactivate ')+esc(d.name)+'" title="'+(dimensionInactive?'Activate Dimension':'Deactivate Dimension')+'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9M6.2 6.2a8 8 0 1 0 11.6 0"></path></svg></button>'+
-   '<button class="dimension-control" data-move-dimension="'+esc(d.id)+'" data-direction="up" data-preserve-case aria-label="Move '+esc(d.name)+' up" title="Move Up" '+(di===0?'disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 14 6-6 6 6"></path></svg></button>'+
-   '<button class="dimension-control" data-move-dimension="'+esc(d.id)+'" data-direction="down" data-preserve-case aria-label="Move '+esc(d.name)+' down" title="Move Down" '+(di===dims.length-1?'disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6 6 6-6"></path></svg></button>'+
+   '<button type="button" class="dimension-control dimension-grab" data-drag-dimension="'+esc(d.id)+'" data-preserve-case draggable="true" aria-label="Reorder '+esc(d.name)+'" title="Grab To Reorder"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.25"/><circle cx="16" cy="6" r="1.25"/><circle cx="8" cy="12" r="1.25"/><circle cx="16" cy="12" r="1.25"/><circle cx="8" cy="18" r="1.25"/><circle cx="16" cy="18" r="1.25"/></svg></button>'+
    '<button class="dimension-control dimension-delete" data-delete-dimension="'+esc(d.id)+'" data-preserve-case aria-label="Delete '+esc(d.name)+'" title="Delete Dimension"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9 7V4.5h6V7m-8.5 0 1 13h9l1-13M10 10.5v6m4-6v6"></path></svg></button>';
   return '<article class="dimension-card '+(dimensionInactive?'is-dimension-inactive':'')+'" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(color)+'">'+
    '<header class="dimension-card-header">'+
@@ -456,13 +455,6 @@ function toggleDimension(id){
  const d=D(id);if(!d)return;
  d.active=d.active===false;
  save();toast(d.active?"Dimension Activated.":"Dimension Deactivated.");
-}
-function moveDimension(id,direction){
- const from=data.dimensions.findIndex(d=>d.id===id);if(from<0)return;
- const to=from+(direction==="up"?-1:direction==="down"?1:0);
- if(to<0||to>=data.dimensions.length||to===from)return;
- const [dimension]=data.dimensions.splice(from,1);data.dimensions.splice(to,0,dimension);
- save();toast("Dimension Order Updated.");
 }
 function deleteDimension(id){
  const d=D(id);if(!d)return;
@@ -604,7 +596,6 @@ document.addEventListener("click",e=>{
  const addForDimension=e.target.closest("[data-add-habit-dimension]");if(addForDimension){openHabitModal(null,addForDimension.dataset.addHabitDimension);return}
  const addDim=e.target.closest("[data-add-dimension]");if(addDim){addDimension();return}
  const removeDimension=e.target.closest("[data-delete-dimension]");if(removeDimension){deleteDimension(removeDimension.dataset.deleteDimension);return}
- const moveDimensionButton=e.target.closest("[data-move-dimension]");if(moveDimensionButton){moveDimension(moveDimensionButton.dataset.moveDimension,moveDimensionButton.dataset.direction);return}
  const toggleDimensionButton=e.target.closest("[data-toggle-dimension]");if(toggleDimensionButton){toggleDimension(toggleDimensionButton.dataset.toggleDimension);return}
  const removeHabit=e.target.closest("[data-delete-habit]");if(removeHabit){deleteHabit(removeHabit.dataset.deleteHabit);return}
  const toggle=e.target.closest("[data-toggle-habit]");if(toggle){toggleHabit(toggle.dataset.toggleHabit);return}
@@ -630,6 +621,52 @@ $("#saveNow").onclick=()=>dataFolder?saveFolder().then(saved=>{if(saved)toast("S
 $("#resetData").onclick=restoreSample;
 $("#resetAllData").onclick=resetAllData;
 
+document.addEventListener("dragstart",e=>{
+ const handle=e.target.closest("[data-drag-dimension]");
+ if(!handle||!e.target.closest("#dimensionCards")){e.preventDefault();return}
+ draggedDimensionId=handle.dataset.dragDimension;
+ const card=handle.closest("[data-dimension-card]");
+ card?.classList.add("dragging-dimension");
+ if(e.dataTransfer){e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",draggedDimensionId)}
+});
+document.addEventListener("dragover",e=>{
+ if(!draggedDimensionId)return;
+ const card=e.target.closest("#dimensionCards [data-dimension-card]");
+ if(!card||card.dataset.dimensionCard===draggedDimensionId)return;
+ e.preventDefault();
+ $$("#dimensionCards .drop-target-dimension").forEach(node=>node.classList.remove("drop-target-dimension"));
+ card.classList.add("drop-target-dimension");
+ if(e.dataTransfer)e.dataTransfer.dropEffect="move";
+});
+document.addEventListener("drop",e=>{
+ if(!draggedDimensionId)return;
+ const card=e.target.closest("#dimensionCards [data-dimension-card]");
+ if(!card){draggedDimensionId=null;return}
+ e.preventDefault();
+ const from=data.dimensions.findIndex(d=>d.id===draggedDimensionId);
+ const to=data.dimensions.findIndex(d=>d.id===card.dataset.dimensionCard);
+ if(from>=0&&to>=0&&from!==to){
+  const [moved]=data.dimensions.splice(from,1);
+  data.dimensions.splice(to,0,moved);
+  save();toast("Dimension Order Updated.");
+ }
+ draggedDimensionId=null;
+ $$("#dimensionCards .dimension-card").forEach(node=>node.classList.remove("dragging-dimension","drop-target-dimension"));
+});
+document.addEventListener("dragend",()=>{
+ draggedDimensionId=null;
+ $$("#dimensionCards .dimension-card").forEach(node=>node.classList.remove("dragging-dimension","drop-target-dimension"));
+});
+document.addEventListener("keydown",e=>{
+ const handle=e.target.closest("[data-drag-dimension]");
+ if(!handle||!e.altKey||!["ArrowUp","ArrowDown"].includes(e.key))return;
+ e.preventDefault();
+ const from=data.dimensions.findIndex(d=>d.id===handle.dataset.dragDimension);
+ const to=from+(e.key==="ArrowUp"?-1:1);
+ if(from<0||to<0||to>=data.dimensions.length)return;
+ const [moved]=data.dimensions.splice(from,1);data.dimensions.splice(to,0,moved);
+ save();toast("Dimension Order Updated.");
+});
 document.addEventListener("keydown",e=>{
   const dimensionRow=e.target.closest("[data-open-dimension]");
   if(dimensionRow&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openDimensionInLibrary(dimensionRow.dataset.openDimension);return}
