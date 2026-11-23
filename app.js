@@ -396,15 +396,15 @@ function renderSettings(){$("#mvaRange").value=data.settings.mva;$("#mvaValue").
 function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function exportData(){download("habit-radar-backup-"+today()+".json",JSON.stringify(data,null,2));toast("Backup Exported.")}
 function importData(file){const reader=new FileReader();reader.onload=()=>{try{const parsed=validateBackupPayload(JSON.parse(reader.result));data=normalize(parsed);statsSpotlightHabit=null;selectedStatsHabit=null;expandedInactiveDimensions.clear();save();toast("Backup Restored.")}catch(e){console.warn("Backup import rejected",e);toast("Invalid Or Incompatible Backup File.")}};reader.onerror=()=>toast("Could Not Read Backup File.");reader.readAsText(file)}
-async function chooseFolder(){if(!window.showDirectoryPicker){toast("Folder Saving Is Not Supported Here. Use JSON Export/Import.");return}try{dataFolder=await window.showDirectoryPicker({mode:"readwrite"});await saveFolder();renderSettings();toast("Data Folder Connected.")}catch(e){if(e.name!=="AbortError")toast("Could Not Connect Folder.")}}
+async function chooseFolder(){if(!window.showDirectoryPicker){toast("Folder Saving Is Not Supported Here. Use JSON Export/Import.");return}try{dataFolder=await window.showDirectoryPicker({mode:"readwrite"});const saved=await saveFolder();renderSettings();toast(saved?"Data Folder Connected.":"Folder Connected, But Initial Backup Failed.")}catch(e){if(e.name!=="AbortError")toast("Could Not Connect Folder.")}}
 async function saveFolder(){
- if(!dataFolder)return;
+ if(!dataFolder)return false;
  const folder=dataFolder,payload=JSON.stringify(data,null,2);
  folderWriteQueue=folderWriteQueue.catch(()=>{}).then(async()=>{
   const file=await folder.getFileHandle("habit-radar.json",{create:true}),w=await file.createWritable();
   try{await w.write(payload);await w.close()}catch(e){try{await w.abort()}catch(_){}throw e}
  });
- try{await folderWriteQueue}catch(e){console.warn(e);toast("Folder Save Failed. Export A JSON Backup.")}
+ try{await folderWriteQueue;return true}catch(e){console.warn(e);toast("Folder Save Failed. Export A JSON Backup.");return false}
 }
 function restoreSample(){if(confirm("Replace The Current Workspace With The Original Sample Data? Export A Backup First If Needed.")){data=sampleData();save();toast("Sample Workspace Restored.")}}
 function resetAllData(){if(!confirm("Permanently erase all dimensions, habits, settings and historical records from this workspace? This cannot be undone. Export a backup first if needed."))return;data={version:2,visualVersion:2,settings:{mva:.25,defaultBenchmark:1000},dimensions:[],pools:[],habits:[],records:{}};selectedDate=today();selectedStatsHabit=null;statsSpotlightHabit=null;save();toast("All Workspace Data Cleared.")}
@@ -441,7 +441,7 @@ $("#defaultBenchmark").onchange=e=>{data.settings.defaultBenchmark=Math.max(1,Nu
 $("#exportData").onclick=exportData;
 $("#importData").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value=""};
 $("#chooseFolder").onclick=chooseFolder;
-$("#saveNow").onclick=()=>dataFolder?saveFolder().then(()=>toast("Saved.")):exportData();
+$("#saveNow").onclick=()=>dataFolder?saveFolder().then(saved=>{if(saved)toast("Saved.")}):exportData();
 $("#resetData").onclick=restoreSample;
 $("#resetAllData").onclick=resetAllData;
 
