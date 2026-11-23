@@ -97,21 +97,9 @@ function setSidebarOpen(open){
  try{localStorage.setItem("habitRadarSidebarOpen",open?"1":"0")}catch(e){}
 }
 function render(){const statHabit=H(selectedStatsHabit);const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["","Habit Library"],stats:["","Statistics"],settings:["","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderOverview();renderTracker();renderHabitStats();renderLibrary();renderStats();renderSettings();applyTitleCase()}
-const PERIOD_LABELS={"1m":"Last 30 Days","3m":"Last 90 Days","all":"All Recorded Activity"};
 let activeDim=null;
 function dimIndex(i){return String(i+1).padStart(2,"0")}
 function dimColor(d,i){return safeColor(d.color,DIMENSION_COLORS[i%DIMENSION_COLORS.length])}
-function joinNames(list){return list.length<2?list.join(""):list.slice(0,-1).join(", ")+" and "+list[list.length-1]}
-function insightName(d,i){return '<span class="insight-name" data-dimension-name="true" style="color:'+esc(dimColor(d,i))+'">'+esc(dimensionLabel(d.name))+'</span>'}
-function overviewInsight(ds,vals){
- if(!ds.length)return "";
- if(ds.length===1)return 'Only '+insightName(ds[0],0)+' is tracked, so there is no balance to compare yet.';
- const hi=Math.max(...vals),lo=Math.min(...vals);
- if(hi<=0)return 'No activity recorded in this period.';
- if(hi-lo<1e-9)return 'Level across every dimension, each at '+fmt(hi)+' points.';
- const pick=v=>ds.map((d,i)=>Math.abs(vals[i]-v)<1e-9?insightName(d,i):null).filter(Boolean);
- return '<em>Strongest:</em> '+joinNames(pick(hi))+'. <em>Lagging:</em> '+joinNames(pick(lo))+'.';
-}
 function setActiveDim(id){
  id=id||null;if(id===activeDim)return;activeDim=id;
  const plate=document.querySelector(".plate-screen");if(!plate)return;
@@ -119,50 +107,45 @@ function setActiveDim(id){
  plate.querySelectorAll("[data-dim]").forEach(el=>el.classList.toggle("is-active",!!id&&el.dataset.dim===id));
 }
 function renderOverview(){
- const ds=data.dimensions.filter(d=>!d.archived),vals=ds.map(d=>rawPoints(d.id,period)),total=vals.reduce((a,b)=>a+b,0);
+ const ds=data.dimensions.filter(d=>!d.archived);
  activeDim=null;$(".plate-screen").classList.remove("has-active");
- const dp=Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Kolkata",weekday:"long",day:"numeric",month:"long",year:"numeric"}).formatToParts(new Date()).map(x=>[x.type,x.value]));
- $("#mastheadDate").innerHTML='<em>'+esc(dp.weekday)+'</em> '+esc(dp.day+" "+dp.month+" "+dp.year);
- $("#mastheadPeriod").textContent=PERIOD_LABELS[period]||PERIOD_LABELS["1m"];
- $("#mastheadTotal").textContent=fmt(total);
- drawRadar(ds,vals);
- renderLedger(ds,vals);
- const insight=$("#insight");insight.innerHTML=overviewInsight(ds,vals);insight.hidden=!ds.length;
-}
-function renderLedger(ds,vals){
- const host=$("#ledger");
- if(!ds.length){host.innerHTML="";host.hidden=true;return}
- host.hidden=false;
- const max=Math.max(25,...vals)*1.18;
- host.innerHTML='<div class="ledger-head"><span>Dimension</span><span>Points</span></div>'+ds.map((d,i)=>{
-  const name=esc(dimensionLabel(d.name));
-  return '<div class="ledger-row" role="button" tabindex="0" data-dim="'+esc(d.id)+'" data-open-dimension="'+esc(d.id)+'" aria-label="Open '+name+' in Habit Library, '+fmt(vals[i])+' points" style="--dimension-accent:'+esc(dimColor(d,i))+'"><span class="ledger-index">'+dimIndex(i)+'</span><span class="ledger-name plate-name" data-dimension-name="true">'+name+'</span><span class="ledger-points">'+fmt(vals[i])+'</span><i class="ledger-bar"><b style="width:'+Math.min(100,vals[i]/max*100).toFixed(1)+'%"></b></i></div>';
- }).join("");
+ drawRadar(ds,ds.map(d=>rawPoints(d.id,period)));
 }
 function drawRadar(ds,vals){
- const svg=$("#radar"),cx=380,cy=380,r=290,n=ds.length;
- if(!n){svg.innerHTML='<text class="radar-empty" x="380" y="384" text-anchor="middle">Create your first dimension</text>';return}
- const max=Math.max(25,...vals)*1.18;
- const ang=i=>-Math.PI/2+i*2*Math.PI/n;
+ const svg=$("#radar"),n=ds.length,compact=!!(window.matchMedia&&window.matchMedia("(max-width:700px)").matches);
+ const W=compact?760:1000,H=compact?900:760,cx=W/2,cy=compact?450:382,r=compact?235:275,lab=compact?1.2:1.2;
+ svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("class",compact?"is-compact":"");
+ if(!n){svg.innerHTML='<text class="radar-empty" x="'+cx+'" y="'+cy+'" text-anchor="middle">Create your first dimension</text>';return}
+ const max=Math.max(25,...vals)*1.18,TAU=Math.PI*2;
+ const ang=i=>-Math.PI/2+i*TAU/n;
  const at=(i,k)=>[cx+Math.cos(ang(i))*r*k,cy+Math.sin(ang(i))*r*k];
- const pt=a=>a[0].toFixed(1)+" "+a[1].toFixed(1);
- const mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];
- const P=ds.map((d,i)=>at(i,vals[i]/max));
- const accent=ds.map((d,i)=>'--dimension-accent:'+esc(dimColor(d,i)));
- let out='<g class="radar-rings">';
- [.25,.5,.75,1].forEach(k=>{out+='<circle class="radar-ring'+(k===1?' is-outer':'')+'" cx="'+cx+'" cy="'+cy+'" r="'+(r*k)+'"/><text class="radar-ring-label" x="'+(cx+6)+'" y="'+(cy-r*k+13)+'">'+Math.round(max*k)+'</text>'});
- out+='</g>';
- ds.forEach((d,i)=>{const t=at(i,1),ix=at(i,1.115);
-  out+='<g class="radar-tip" data-dim="'+esc(d.id)+'" style="'+accent[i]+'"><line class="radar-axis" x1="'+cx+'" y1="'+cy+'" x2="'+t[0].toFixed(1)+'" y2="'+t[1].toFixed(1)+'"/><circle class="radar-end" cx="'+t[0].toFixed(1)+'" cy="'+t[1].toFixed(1)+'" r="2.6"/><text class="radar-index" x="'+ix[0].toFixed(1)+'" y="'+ix[1].toFixed(1)+'" text-anchor="middle" dominant-baseline="central">'+dimIndex(i)+'</text></g>';
+ const f=v=>v.toFixed(1),pt=a=>f(a[0])+" "+f(a[1]),mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];
+ const P=ds.map((d,i)=>at(i,vals[i]/max)),col=ds.map((d,i)=>esc(dimColor(d,i)));
+ // defs: one radial gradient per dimension (centre to its own tip) and a soft core
+ let out='<defs><radialGradient id="radar-core" cx="'+cx+'" cy="'+cy+'" r="'+(r*.62)+'" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity=".085"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>';
+ ds.forEach((d,i)=>{const len=Math.max(24,Math.hypot(P[i][0]-cx,P[i][1]-cy));out+='<radialGradient id="radar-g'+i+'" cx="'+cx+'" cy="'+cy+'" r="'+f(len)+'" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="'+col[i]+'" stop-opacity=".07"/><stop offset="1" stop-color="'+col[i]+'" stop-opacity=".66"/></radialGradient>'});
+ out+='</defs><circle cx="'+cx+'" cy="'+cy+'" r="'+(r*.62)+'" fill="url(#radar-core)"/><g class="radar-rings">';
+ [.2,.4,.6,.8,1].forEach(k=>{out+='<circle class="radar-ring'+(k===1?' is-outer':'')+'" cx="'+cx+'" cy="'+cy+'" r="'+f(r*k)+'"/>'});
+ // dial ticks: a minor tick every 5 degrees, a major tick every 30
+ let minor="",major="";
+ for(let t=0;t<72;t++){const a=t*TAU/72-Math.PI/2,big=t%6===0,r0=r*1.04,r1=r*(big?1.095:1.07),c=Math.cos(a),s=Math.sin(a),seg="M"+f(cx+c*r0)+" "+f(cy+s*r0)+"L"+f(cx+c*r1)+" "+f(cy+s*r1);if(big)major+=seg;else minor+=seg}
+ out+='<path class="radar-tick" d="'+minor+'"/><path class="radar-tick is-major" d="'+major+'"/></g>';
+ // axes, tip dots and dimension names
+ ds.forEach((d,i)=>{
+  const a=ang(i),c=Math.cos(a),s=Math.sin(a),t=at(i,1.02),L=at(i,lab);
+  const anchor=compact?"middle":(c>.2?"start":c<-.2?"end":"middle");
+  let ly=L[1];if(s<-.6)ly-=12;else if(s>.6)ly+=14;
+  const name=esc(dimensionLabel(d.name));
+  out+='<g class="radar-tip" role="button" tabindex="0" data-dim="'+esc(d.id)+'" data-open-dimension="'+esc(d.id)+'" aria-label="Open '+name+' in Habit Library" style="--dimension-accent:'+col[i]+'"><line class="radar-axis" x1="'+cx+'" y1="'+cy+'" x2="'+f(t[0])+'" y2="'+f(t[1])+'"/><circle class="radar-end" cx="'+f(t[0])+'" cy="'+f(t[1])+'" r="3"/><text class="radar-index" x="'+f(L[0])+'" y="'+f(ly-15)+'" text-anchor="'+anchor+'" dominant-baseline="central">'+dimIndex(i)+'</text><text class="radar-name" data-dimension-name="true" x="'+f(L[0])+'" y="'+f(ly+8)+'" text-anchor="'+anchor+'" dominant-baseline="central">'+name+'</text></g>';
  });
+ // data: per-dimension gradient sector, coloured outer edge, node
  out+='<g class="radar-data">';
  ds.forEach((d,i)=>{
   const p=P[i];let shape;
-  if(n>=3){
-   const m1=mid(P[(i-1+n)%n],p),m2=mid(p,P[(i+1)%n]);
-   shape='<polygon class="radar-sector" points="'+[[cx,cy],m1,p,m2].map(pt).join(",")+'"/><path class="radar-edge" d="M'+pt(m1)+' L'+pt(p)+' L'+pt(m2)+'"/>';
-  }else shape='<line class="radar-spoke" x1="'+cx+'" y1="'+cy+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'"/>';
-  out+='<g class="radar-dim" data-dim="'+esc(d.id)+'" style="'+accent[i]+'">'+shape+'<circle class="radar-node" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="5"/></g>';
+  if(n>=3){const m1=mid(P[(i-1+n)%n],p),m2=mid(p,P[(i+1)%n]);
+   shape='<polygon class="radar-sector" fill="url(#radar-g'+i+')" points="'+[[cx,cy],m1,p,m2].map(pt).join(",")+'"/><path class="radar-edge" d="M'+pt(m1)+' L'+pt(p)+' L'+pt(m2)+'"/>';
+  }else shape='<line class="radar-spoke" x1="'+cx+'" y1="'+cy+'" x2="'+f(p[0])+'" y2="'+f(p[1])+'"/>';
+  out+='<g class="radar-dim" data-dim="'+esc(d.id)+'" style="--dimension-accent:'+col[i]+'">'+shape+'<circle class="radar-halo" cx="'+f(p[0])+'" cy="'+f(p[1])+'" r="11"/><circle class="radar-node" cx="'+f(p[0])+'" cy="'+f(p[1])+'" r="5.5"/></g>';
  });
  out+='</g><circle class="radar-center" cx="'+cx+'" cy="'+cy+'" r="2.5"/>';
  svg.innerHTML=out;
@@ -230,7 +213,7 @@ function renderLibrary(){
    const allocation=habitAllocations(h).find(a=>a.dimensionId===d.id),shared=habitAllocations(h).length>1,locked=!h.active||h.archived;
    return '<article class="library-habit-row '+(isInactive?'is-inactive ':'')+(shared?'is-shared':'')+(touched===h.id?' just-saved':'')+'" style="--habit-accent:'+esc(habitAccent(h))+'"><button class="library-habit-main" data-edit-habit="'+esc(h.id)+'" aria-label="Edit '+esc(h.name)+'"><span class="library-habit-copy"><strong>'+esc(titleCase(h.name))+'</strong><small>'+fmt(allocation?.points||0)+' pts'+(shared?' <span class="shared-label">Shared</span>':'')+'</small></span></button><button class="library-lock '+(locked?'is-locked':'is-unlocked')+'" data-toggle-habit="'+esc(h.id)+'" aria-label="'+(locked?'Activate ':'Deactivate ')+esc(h.name)+'" title="'+(locked?'Unlock Habit':'Lock Habit')+'">'+(locked?'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7.5-2"></path><path d="M16.5 5.5V10"></path></svg>')+'</button></article>';
   }).join(""):'<div class="library-group-empty">'+(isInactive?'No Inactive Habits':'No Active Habits')+'</div>';
-  return '<article class="dimension-card" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(safeColor(d.color,DIMENSION_COLORS[0]))+'"><header class="dimension-card-header"><div class="dimension-plate-head"><div class="dimension-plate-meta"><span class="dimension-index">'+dimIndex(di)+'</span><i class="dimension-rule"></i><span class="dimension-total" data-preserve-case>'+(active.length?active.length+" active · "+fmt(active.reduce((t,h)=>t+(Number(habitAllocations(h).find(a=>a.dimensionId===d.id)?.points)||0),0))+" pts/day":"None active")+'</span></div><button class="dimension-name-button" data-edit-dimension="'+esc(d.id)+'" aria-label="Rename '+esc(dimensionLabel(d.name))+'" title="Rename Dimension"><span class="plate-name" data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</span></button></div><div class="dimension-header-tools">'+dimensionGlyph(di,dims.length,safeColor(d.color,DIMENSION_COLORS[0]))+'<button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(dimensionLabel(d.name))+'" title="Add Habit">+</button></div></header><section class="library-group"><div class="library-group-heading"><span>Active</span><span>'+active.length+'</span></div><div class="library-habit-list">'+rows(active,false)+'</div></section><section class="library-group inactive-group"><div class="library-group-heading"><span>Inactive</span><span>'+inactive.length+'</span></div><div class="library-habit-list">'+rows(inactive,true)+'</div></section></article>';
+  return '<article class="dimension-card" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(safeColor(d.color,DIMENSION_COLORS[0]))+'"><header class="dimension-card-header"><div class="dimension-plate-head"><div class="dimension-plate-meta"><span class="dimension-index">'+dimIndex(di)+'</span><i class="dimension-rule"></i></div><button class="dimension-name-button" data-edit-dimension="'+esc(d.id)+'" aria-label="Rename '+esc(dimensionLabel(d.name))+'" title="Rename Dimension"><span class="plate-name" data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</span></button></div><div class="dimension-header-tools">'+dimensionGlyph(di,dims.length,safeColor(d.color,DIMENSION_COLORS[0]))+'<button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(dimensionLabel(d.name))+'" title="Add Habit">+</button></div></header><section class="library-group"><div class="library-group-heading"><span>Active</span><span>'+active.length+'</span></div><div class="library-habit-list">'+rows(active,false)+'</div></section><section class="library-group inactive-group"><div class="library-group-heading"><span>Inactive</span><span>'+inactive.length+'</span></div><div class="library-habit-list">'+rows(inactive,true)+'</div></section></article>';
  }).join("")+'<button class="add-dimension-card" data-add-dimension><span class="add-dimension-plus">＋</span><strong>Add Dimension</strong><small>Create another area of life</small></button>';
  lastTouchedHabitId=null;
 }
@@ -281,7 +264,7 @@ function submitHabitModal(e){
 }
 function toggleHabit(id){const h=H(id);if(!h)return;h.active=!(h.active&&!h.archived);h.archived=false;lastTouchedHabitId=id;save();toast(h.active?"Habit activated.":"Habit made inactive.")}
 
-function statsDateRange(){const end=new Date(today()+"T12:00:00"),start=new Date(end);if(period==="1m")start.setDate(start.getDate()-29);else if(period==="3m")start.setDate(start.getDate()-89);else{const dates=Object.keys(data.records||{}).filter(d=>/^\\d{4}-\\d{2}-\\d{2}$/.test(d)).sort();if(dates.length)start.setTime(new Date(dates[0]+"T12:00:00").getTime())}return {start,end}}
+function statsDateRange(){const end=new Date(today()+"T12:00:00"),start=new Date(end);if(period==="1m")start.setDate(start.getDate()-29);else if(period==="3m")start.setDate(start.getDate()-89);else{const dates=Object.keys(data.records||{}).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).sort();if(dates.length)start.setTime(new Date(dates[0]+"T12:00:00").getTime())}return {start,end}}
 function inStatsRange(date){const {start,end}=statsDateRange(),dt=new Date(date+"T12:00:00");return !Number.isNaN(dt.getTime())&&dt>=start&&dt<=end}
 function statsRecords(){return Object.entries(data.records||{}).filter(([date])=>inStatsRange(date)).sort((a,b)=>a[0].localeCompare(b[0]))}
 function dailyRecordPoints(record){return Object.values(record?.items||{}).reduce((sum,item)=>sum+(item?.snapshot?pointsFor(item.snapshot,item.status):0),0)}
@@ -377,6 +360,7 @@ document.addEventListener("keydown",e=>{
   if(next>=0&&next<list.length)reorderHabits(row.dataset.dragHabit,list[next].id)
  });
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();dataFolder?saveFolder():exportData()}});
+if(window.matchMedia)window.matchMedia("(max-width:700px)").addEventListener("change",()=>renderOverview());
 document.addEventListener("mouseover",e=>{if(view!=="overview")return;const t=e.target.closest&&e.target.closest(".plate-screen [data-dim]");setActiveDim(t?t.dataset.dim:null)});
 document.addEventListener("focusin",e=>{const t=e.target.closest&&e.target.closest(".plate-screen [data-dim]");if(t)setActiveDim(t.dataset.dim)});
 document.addEventListener("focusout",e=>{if(e.target.closest&&e.target.closest(".plate-screen [data-dim]"))setActiveDim(null)});
