@@ -223,11 +223,13 @@ function createRadarAtmosphere(canvas){
   if(!raf){lastFrame=performance.now();raf=requestAnimationFrame(frame)}
  }
  function setActive(next){
-  active=!!next;
+  next=!!next;
+  if(next===active)return;
+  active=next;
   if(!active){stop();return}
   resize();start();
  }
- window.addEventListener("resize",resize,{passive:true});
+ window.addEventListener("resize",()=>{if(active)resize()},{passive:true});
  document.addEventListener("visibilitychange",()=>active?(document.hidden?stop():start()):null);
  if(motionQuery){
   const onMotionChange=()=>{if(!active)return;if(motionQuery.matches){stop();draw(performance.now(),false)}else start()};
