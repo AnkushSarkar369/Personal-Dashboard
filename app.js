@@ -428,33 +428,41 @@ function drawRadar(ds,vals){
 }
 function renderTracker(){
  const date=selectedDate||today(),isToday=date===today(),rec=data.records[date],now=new Date(),dateParts=formatOrdinalDate(new Date(date+"T12:00:00")).split(", ");
- const active=activeHabits(),dimensions=data.dimensions.filter(d=>!d.archived&&d.active!==false);
+ const withinTracking=date>=(data.settings.trackingStartDate||today())&&date<=today()&&!isSpecialDay(date);
+ const eligibleIds=withinTracking?eligibleHabitIdsForDate(date):[];
+ const trackedById=new Map();
+ eligibleIds.forEach(id=>{
+  const h=H(id);if(!h)return;
+  const p=eligibilityHabitPeriod(id,date);
+  trackedById.set(id,{...h,name:p?.name||h.name,points:(p?.allocations||h.points||[]).map(a=>({dimensionId:a.dimensionId,points:a.points}))});
+ });
+ const tracked=Array.from(trackedById.values()),trackedIds=new Set(tracked.map(h=>h.id));
+ const dimensions=data.dimensions.filter(d=>!!eligibilityPeriodAt(data.eligibility?.dimensions?.[d.id],date));
  const groups=dimensions.map(d=>({
   dimension:d,
-  habits:active.filter(h=>habitAllocations(h).some(a=>a.dimensionId===d.id)).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base",numeric:true}))
+  habits:tracked.filter(h=>(eligibilityHabitPeriod(h.id,date)?.allocations||[]).some(a=>a.dimensionId===d.id)).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base",numeric:true}))
  })).filter(group=>group.habits.length);
- const trackedById=new Map();groups.forEach(group=>group.habits.forEach(h=>trackedById.set(h.id,h)));
- const tracked=Array.from(trackedById.values()),trackedIds=new Set(tracked.map(h=>h.id));
- const historical=Object.entries(rec?.items||{}).filter(([id,item])=>!trackedIds.has(id)&&item?.snapshot).map(([id,item])=>({id,name:item.snapshot.name||H(id)?.name||"Archived Habit",snapshot:item.snapshot,historical:true}));
+ const groupedIds=new Set(groups.flatMap(group=>group.habits.map(h=>h.id)));
+ const historical=Object.entries(rec?.items||{}).filter(([id,item])=>!groupedIds.has(id)&&item?.snapshot).map(([id,item])=>({id,name:item.snapshot.name||H(id)?.name||"Archived Habit",snapshot:item.snapshot,historical:true}));
  const resolved=resolvedCount(rec,tracked);
- $("#liveDate").innerHTML='<span class="date-weekday">'+(isToday?"":'<span class="date-context">ARCHIVE / </span>')+esc(dateParts[0])+'</span><span class="date-rest">'+esc(dateParts.slice(1).join(", "))+'</span>';
+ $("#liveDate").innerHTML='<span class="date-weekday">'+(isSpecialDay(date)?'<span class="date-context">★ SPECIAL DAY / </span>':isToday?"":'<span class="date-context">ARCHIVE / </span>')+esc(dateParts[0])+'</span><span class="date-rest">'+esc(dateParts.slice(1).join(", "))+'</span>';
  $("#liveClock").innerHTML=isToday?clockMarkup(now):'<button class="archive-back-button" data-back-stats>← Back To Statistics</button>';
  $("#todayProgressLabel").textContent=resolved+" / "+tracked.length+" recorded";
  $("#todayProgressFill").style.transform="scaleX("+(tracked.length?resolved/tracked.length:0)+")";
  $("#trackerEmpty").hidden=tracked.length+historical.length>0;
- $("#trackerEmpty").textContent="No active habits in active dimensions. Configure them in the Habit Library.";
+ $("#trackerEmpty").textContent=date<(data.settings.trackingStartDate||today())?"This date is before your Tracking Start Date. Historical entries remain available below.":"No active habits were eligible on this date.";
  const rowMarkup=(h,dimension=null)=>{
   const historicalRow=!!h.historical,it=rec?.items[h.id],status=it?.status||"",snapshot=historicalRow?h.snapshot:it?.snapshot;
   const accent=historicalRow
    ?(snapshot?.points?.length>1?SPECIAL_COLOR:D(snapshot?.points?.[0]?.dimensionId)?.color||"#aeb8c7")
    :safeColor(dimension?.color,habitAccent(h));
-  const shared=!historicalRow&&habitAllocations(h).length>1;
+  const shared=!historicalRow&&(eligibilityHabitPeriod(h.id,date)?.allocations||h.points||[]).length>1;
   return '<div class="daily-habit '+(status?"is-"+status:"")+(historicalRow?" is-historical":"")+'" style="--habit-accent:'+esc(accent)+';--dimension-accent:'+esc(accent)+';" '+(historicalRow?'':'data-open-habit="'+esc(h.id)+'"')+' data-preserve-case tabindex="0" '+(historicalRow?'':'role="link"')+' aria-label="'+esc(h.name)+(historicalRow?". Historical record.":". Open statistics.")+'">'+
    '<span class="daily-habit-name" data-preserve-case>'+esc(h.name)+(shared?'<small class="daily-shared-label">Shared</small>':'')+'</span>'+
    '<div class="status-dots" role="group" aria-label="Habit status">'+
-    '<button class="status-dot completed '+(status==="completed"?"chosen":"")+'" data-set-status="completed" data-habit="'+esc(h.id)+'" aria-label="Completed" aria-pressed="'+(status==="completed")+'" title="Completed"></button>'+
-    '<button class="status-dot mva '+(status==="mva"?"chosen":"")+'" data-set-status="mva" data-habit="'+esc(h.id)+'" aria-label="Minimum viable action" aria-pressed="'+(status==="mva")+'" title="Minimum viable action"></button>'+
-    '<button class="status-dot missed '+(status==="missed"?"chosen":"")+'" data-set-status="missed" data-habit="'+esc(h.id)+'" aria-label="Not completed" aria-pressed="'+(status==="missed")+'" title="Not completed"></button>'+
+    '<button class="status-dot completed '+(status==="completed"?"chosen":"")+'" data-set-status="completed" data-habit="'+esc(h.id)+'" aria-label="Completed" aria-pressed="'+(status==="completed")+'" title="Completed · click again to clear"></button>'+
+    '<button class="status-dot mva '+(status==="mva"?"chosen":"")+'" data-set-status="mva" data-habit="'+esc(h.id)+'" aria-label="Minimum viable action" aria-pressed="'+(status==="mva")+'" title="Minimum viable action · click again to clear"></button>'+
+    '<button class="status-dot missed '+(status==="missed"?"chosen":"")+'" data-set-status="missed" data-habit="'+esc(h.id)+'" aria-label="Not completed" aria-pressed="'+(status==="missed")+'" title="Not completed · click again to clear"></button>'+
    '</div></div>';
  };
  const sections=groups.map((group,index)=>{
@@ -468,15 +476,13 @@ function renderTracker(){
   ?'<section class="daily-dimension-group daily-history-group"><header class="daily-dimension-heading"><span class="daily-dimension-index">↺</span><div class="daily-dimension-copy"><h3>Past Entries</h3><span>'+historical.length+' historical '+(historical.length===1?'record':'records')+'</span></div></header><div class="daily-dimension-habits">'+historical.sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base",numeric:true})).map(h=>rowMarkup(h)).join("")+'</div></section>'
   :'';
  $("#trackerList").innerHTML=sections+historySection;
-}function renderHabitStats(){
+}
+function renderHabitStats(){
  const h=H(selectedStatsHabit);
  if(!h){$("#habitStatsName").textContent="Habit Statistics";$("#habitStatsName").style.color="";$("#habitStatsName").style.textShadow="";$("#habitStatsDescription").textContent="Select A Habit From The Daily Tracker.";$("#habitStatsCards").innerHTML="";$("#habitStatsTable").innerHTML='<div class="empty-state">No Habit Selected.</div>';return}
  $("#habitStatsName").textContent=h.name;$("#habitStatsName").dataset.preserveCase="";$("#habitStatsName").style.color=habitAccent(h);$("#habitStatsName").style.textShadow="0 0 22px "+habitAccent(h)+"33";
  $("#habitStatsDescription").textContent=(habitAllocations(h).length>1?"Shared Habit · ":"")+"Individual Habit Progress";
- const now=new Date(today()+"T12:00:00+05:30"),start=new Date(now);
- if(period==="1m")start.setDate(start.getDate()-29);
- if(period==="3m")start.setDate(start.getDate()-89);
- const entries=Object.entries(data.records).map(([date,rec])=>({date,item:rec.items?.[h.id]})).filter(x=>x.item&&(period==="all"||(new Date(x.date+"T12:00:00+05:30")>=start&&new Date(x.date+"T12:00:00+05:30")<=now))).sort((a,b)=>a.date.localeCompare(b.date));
+ const entries=statsHabitRecords(h.id).map(({date,item})=>({date,item}));
  let earned=0,completed=0,mva=0,missed=0;
  entries.forEach(({item})=>{earned+=pointsFor(item.snapshot,item.status);if(item.status==="completed")completed++;else if(item.status==="mva")mva++;else if(item.status==="missed")missed++});
  $("#habitStatsCards").innerHTML=
@@ -728,7 +734,7 @@ function saveSpecialDayNote(){
 }
 function toggleSpecialDay(){
  const date=archiveSelectedDate;if(!validDateKey(date)||date>today())return;
- const record=ensureDateRecord(date);record.specialDay=!record.specialDay;
+ const record=ensureDateRecord(date);record.specialNote=$("#specialDayNote").value.trim();record.specialDay=!record.specialDay;
  if(record.specialDay)data.settings.pendingReconciliation=(data.settings.pendingReconciliation||[]).filter(row=>row.date!==date);
  else if(date<today()){
   eligibleHabitIdsForDate(date).forEach(id=>{
@@ -741,7 +747,7 @@ function openArchiveDay(date){if(!validDateKey(date)||!data.records[date])return
 function renderHabitLeaders(){
  const cats=[["completed","Most Completed","Full completions"],["mva","Most MVAed","Minimum viable actions"],["missed","Most Missed","Recorded misses"]],totals=new Map();
  statsRecords().forEach(([,record])=>Object.entries(record.items||{}).forEach(([id,item])=>{if(!["completed","mva","missed"].includes(item?.status))return;const v=totals.get(id)||{completed:0,mva:0,missed:0,name:item.snapshot?.name||H(id)?.name||"Unknown Habit"};v[item.status]++;totals.set(id,v)}));
- $("#habitLeaders").innerHTML=cats.map(([key,label,desc])=>{const max=Math.max(0,...Array.from(totals.values(),v=>v[key])),leaders=max?Array.from(totals.entries()).filter(([,v])=>v[key]===max).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([id,v])=>({id,...v})):[],visible=leaders.slice(0,2),remaining=leaders.length-visible.length;return '<section class="leader-category"><div class="leader-category-heading"><span>'+label+'</span><small>'+desc+'</small></div>'+(leaders.length?'<div class="leader-names">'+visible.map(v=>'<div class="leader-row"><strong>'+esc(titleCase(v.name))+'</strong><span>'+v[key]+'</span></div>').join("")+(remaining?'<div class="leader-more">+'+remaining+' more</div>':'')+'</div>':'<div class="leader-empty">No records</div>')+'</section>'}).join("");
+ $("#habitLeaders").innerHTML=cats.map(([key,label,desc])=>{const max=Math.max(0,...Array.from(totals.values(),v=>v[key])),leaders=max?Array.from(totals.entries()).filter(([,v])=>v[key]===max).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([id,v])=>({id,...v})):[],visible=leaders.slice(0,2),remaining=leaders.length-visible.length;return '<section class="leader-category"><div class="leader-category-heading"><span>'+label+'</span><small>'+desc+'</small></div>'+(leaders.length?'<div class="leader-names">'+visible.map(v=>'<div class="leader-row"><strong>'+esc(v.name)+'</strong><span>'+v[key]+'</span></div>').join("")+(remaining?'<div class="leader-more">+'+remaining+' more</div>':'')+'</div>':'<div class="leader-empty">No records</div>')+'</section>'}).join("");
 }
 function renderStats(){renderWeeklyDistribution();renderHabitSpotlight();renderDailyArchive();renderHabitLeaders()}
 function openDimensionInLibrary(id){
