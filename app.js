@@ -7,7 +7,6 @@ const IST_DATE_PARTS_FORMATTER=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/K
 const ORDINAL_DATE_FORMATTER=new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",weekday:"long",month:"long",day:"numeric",year:"numeric"});
 const IST_TIME_FORMATTER=new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true});
 const ARCHIVE_DATE_FORMATTER=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"});
-const RECONCILIATION_DATE_FORMATTER=new Intl.DateTimeFormat("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric",timeZone:"Asia/Kolkata"});
 const LOCAL_SHORT_DATE_FORMATTER=new Intl.DateTimeFormat(undefined,{weekday:"short",month:"short",day:"numeric"});
 const today=()=>{const p=Object.fromEntries(IST_DATE_PARTS_FORMATTER.formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day};
 
@@ -856,7 +855,7 @@ function renderReconciliationModal(){
  host.innerHTML='<div class="reconciliation-backdrop" data-dismiss-reconciliation></div><section class="reconciliation-dialog" role="dialog" aria-modal="true" aria-labelledby="reconciliationTitle">'+
   '<header class="reconciliation-header"><div><div class="eyebrow">HISTORICAL CHECK-IN</div><h2 id="reconciliationTitle">A Few Entries Were Left Open</h2><p>'+count+' unrecorded habit'+(count===1?'':'s')+' across '+pending.length+' day'+(pending.length===1?'':'s')+'. Enter what you remember; unknown is allowed.</p></div><button type="button" class="reconciliation-close" data-dismiss-reconciliation aria-label="Review later">×</button></header>'+
   '<div class="reconciliation-days">'+pending.map(row=>{
-   const label=RECONCILIATION_DATE_FORMATTER.format(new Date(row.date+"T12:00:00"));
+   const label=ORDINAL_DATE_FORMATTER.format(new Date(row.date+"T12:00:00"));
    return '<section class="reconciliation-day"><h3>'+esc(label)+'</h3>'+row.habitIds.map(id=>{
     const h=H(id),p=eligibilityHabitPeriod(id,row.date),name=p?.name||h?.name||"Habit";
     return '<div class="reconciliation-habit"><strong data-preserve-case>'+esc(name)+'</strong><div class="reconciliation-actions"><button type="button" data-reconcile-status="completed" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">Completed</button><button type="button" data-reconcile-status="mva" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">MVA</button><button type="button" data-reconcile-status="missed" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">Missed</button><button type="button" class="reconcile-unknown" data-reconcile-status="unknown" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">Leave Unknown</button></div></div>';
