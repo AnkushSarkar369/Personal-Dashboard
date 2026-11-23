@@ -1111,3 +1111,45 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 /* Habit Library: permanent delete control */
 .library-delete{color:#8b6872}
 .library-delete:hover{border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.09);color:#fb8585;box-shadow:0 0 12px rgba(248,113,113,.12)}
+
+
+/* Overview atmosphere only: layered light, drifting star dust and restrained glints. */
+.radar-plate{
+ isolation:isolate;
+ background:
+  radial-gradient(ellipse at 17% 23%,rgba(39,119,139,.15),transparent 39%),
+  radial-gradient(ellipse at 83% 75%,rgba(112,82,157,.13),transparent 42%),
+  radial-gradient(ellipse at 51% 43%,rgba(86,121,165,.13),transparent 49%),
+  radial-gradient(circle at 50% 50%,#1a2230 0,#131a24 45%,#0e131a 100%);
+ box-shadow:inset 0 0 88px rgba(83,119,160,.075),inset 0 1px 0 rgba(255,255,255,.025);
+}
+.radar-plate::before{
+ content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+ background:linear-gradient(110deg,transparent 0 40%,rgba(117,188,215,0) 46%,rgba(143,188,230,.045) 49.5%,rgba(222,220,255,.075) 50.5%,rgba(128,189,215,.018) 54%,transparent 61%);
+ background-size:260% 100%;background-position:150% 0;
+ mix-blend-mode:screen;opacity:.82;
+ animation:radar-ambient-glint 42s ease-in-out infinite alternate;
+}
+.radar-atmosphere{
+ position:absolute;inset:0;z-index:1;display:block;width:100%;height:100%;
+ pointer-events:none;opacity:.88;
+}
+.radar-plate>svg{z-index:2}
+.radar-plate:after{z-index:3}
+.radar-plate .segmented{z-index:4}
+.radar-dim .radar-edge{
+ filter:drop-shadow(0 0 3px color-mix(in srgb,var(--dimension-accent) 43%,transparent));
+}
+.radar-dim .radar-node{
+ filter:drop-shadow(0 0 5px color-mix(in srgb,var(--dimension-accent) 58%,transparent));
+}
+.radar-tip .radar-end{
+ filter:drop-shadow(0 0 4px color-mix(in srgb,var(--dimension-accent) 62%,transparent));
+}
+@keyframes radar-ambient-glint{
+ from{background-position:150% 0}
+ to{background-position:-150% 0}
+}
+@media(prefers-reduced-motion:reduce){
+ .radar-plate::before{animation:none;background-position:50% 0}
+}
