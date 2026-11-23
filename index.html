@@ -92,36 +92,26 @@
 
 <section class="view" id="view-settings">
   <div class="settings-screen">
-    <header class="settings-page-heading"><div><div class="eyebrow">PREFERENCES & DATA</div><h2>Settings</h2><p>Control how Habit Radar scores, stores and maintains your records.</p></div></header>
+    <div class="settings-page-heading"><h2>Settings</h2></div>
     <div class="settings-grid">
-      <article class="panel settings-card settings-card-tracking">
-        <div class="settings-card-top"><span class="settings-icon">◷</span><div><div class="eyebrow">TRACKING</div><h3>Tracking History</h3></div></div>
-        <p>Choose when performance tracking begins. Earlier records remain in your archive but are excluded from statistics.</p>
-        <div class="settings-control-line"><div class="form-field tracking-date-field"><label for="trackingStartDate">Tracking start date</label><input type="date" id="trackingStartDate"></div><button type="button" class="secondary-button" id="saveTrackingStartDate">Apply</button></div>
+      <article class="panel settings-card">
+        <h3>Tracking</h3>
+        <div class="settings-control-line"><label for="trackingStartDate">Start date</label><input type="date" id="trackingStartDate"><button type="button" class="secondary-button" id="saveTrackingStartDate">Apply</button></div>
         <div id="trackingStartDetail" class="settings-footnote"></div>
-        <div class="settings-review-line"><div><strong>Historical reconciliation</strong><span>Resolve eligible past days that still have no outcome.</span></div><button type="button" class="secondary-button review-pending-button" id="reviewPending" hidden>Review Unrecorded</button></div>
+        <div class="settings-review-line"><span>Unrecorded history</span><button type="button" class="secondary-button review-pending-button" id="reviewPending" hidden>Review</button></div>
       </article>
-      <article class="panel settings-card settings-card-scoring">
-        <div class="settings-card-top"><span class="settings-icon">⌁</span><div><div class="eyebrow">SCORING</div><h3>Scoring Rules</h3></div></div>
-        <div class="setting-row"><label for="mvaRange">Minimum Viable Action multiplier</label><strong id="mvaValue">0.25×</strong></div>
+      <article class="panel settings-card">
+        <h3>Scoring</h3>
+        <div class="setting-row"><label for="mvaRange">MVA multiplier</label><strong id="mvaValue">0.25×</strong></div>
         <input type="range" id="mvaRange" min=".1" max=".5" step=".05" value=".25">
         <div class="range-label"><span>0.10×</span><span>0.50×</span></div>
-        <p class="settings-help">Changes apply to future activity. Historical records retain the multiplier saved with them.</p>
-        <div class="setting-row benchmark-row"><label for="defaultBenchmark">Default dimension benchmark</label><input id="defaultBenchmark" type="number" min="1" step="100" value="1000"></div>
+        <div class="setting-row benchmark-row"><label for="defaultBenchmark">Default benchmark</label><input id="defaultBenchmark" type="number" min="1" step="100" value="1000"></div>
       </article>
       <article class="panel settings-card settings-card-data">
-        <div class="settings-card-top"><span class="settings-icon">▤</span><div><div class="eyebrow">STORAGE</div><h3>Data & Backups</h3></div></div>
-        <p>Browser storage saves automatically. You can also connect a folder for a portable JSON copy.</p>
-        <div class="storage-detail" id="storageDetail">Browser Storage Is Active. Folder-Based Saving Is Optional.</div>
-        <div class="settings-action-group"><button class="secondary-button" id="chooseFolder">Choose Data Folder</button><button class="secondary-button" id="saveNow">Save Now / Export</button></div>
-        <div class="settings-divider"></div>
-        <div class="settings-subheading"><strong>Backup file</strong><span>Move your data between browsers or devices.</span></div>
-        <div class="settings-action-group"><button class="secondary-button" id="exportData">Export JSON</button><label class="secondary-button file-button">Import JSON<input type="file" id="importData" accept=".json,application/json" hidden></label></div>
-      </article>
-      <article class="panel settings-card danger-card settings-card-reset">
-        <div class="settings-card-top"><span class="settings-icon">!</span><div><div class="eyebrow">DESTRUCTIVE ACTIONS</div><h3>Reset Workspace</h3></div></div>
-        <p>Restore the original sample workspace or erase all saved data. These actions cannot be undone.</p>
-        <div class="settings-action-group reset-actions"><button class="danger-button" id="resetData">Restore Sample Data</button><button class="danger-button reset-all-button" id="resetAllData">Reset All Data</button></div>
+        <h3>Data</h3>
+        <div id="storageDetail" class="storage-detail">Browser storage active.</div>
+        <div class="settings-action-group"><button class="secondary-button" id="chooseFolder">Choose Folder</button><button class="secondary-button" id="saveNow">Save Now</button><button class="secondary-button" id="exportData">Export JSON</button><label class="secondary-button file-button">Import JSON<input type="file" id="importData" accept=".json,application/json" hidden></label></div>
+        <div class="settings-reset-row"><span>Reset workspace</span><div class="settings-action-group"><button class="danger-button" id="resetData">Restore Sample</button><button class="danger-button" id="resetAllData">Reset All</button></div></div>
       </article>
     </div>
   </div>
