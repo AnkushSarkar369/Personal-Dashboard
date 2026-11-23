@@ -4,6 +4,99 @@ const DIMENSION_COLORS=["#4ade80","#60a5fa","#fbbf24","#fb923c","#f87171","#a3e6
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const uid=()=> "hr-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
 const today=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day};
+
+function validDateKey(value){
+ if(typeof value!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+ const date=new Date(value+"T12:00:00Z");
+ return !Number.isNaN(date.getTime())&&date.toISOString().slice(0,10)===value;
+}
+function shiftDateKey(date,days){const value=new Date(date+"T12:00:00Z");value.setUTCDate(value.getUTCDate()+days);return value.toISOString().slice(0,10)}
+function periodContains(period,date){return !!period&&validDateKey(period.from)&&period.from<=date&&(!period.through||period.through>=date)}
+function buildEligibilityBaseline(dimensions,habits,startDate,mva){
+ const dimensionHistory={},habitHistory={};
+ dimensions.forEach(d=>{dimensionHistory[d.id]=d.active===false?[]:[{from:startDate,through:null}]});
+ habits.forEach(h=>{
+  const allocations=(h.points||[]).map(a=>({dimensionId:a.dimensionId,dimensionName:dimensions.find(d=>d.id===a.dimensionId)?.name||"Dimension",points:Number(a.points)||0}));
+  habitHistory[h.id]=h.active===false||!allocations.length?[]:[{from:startDate,through:null,name:h.name,allocations,mva:Number(mva)||.25}];
+ });
+ return {dimensions:dimensionHistory,habits:habitHistory};
+}
+function normalizeEligibility(source,dimensions,habits,startDate,mva){
+ const fallback=buildEligibilityBaseline(dimensions,habits,startDate,mva),input=isPlainObject(source)?source:{};
+ const dimensionSource=isPlainObject(input.dimensions)?input.dimensions:{},habitSource=isPlainObject(input.habits)?input.habits:{};
+ const dimensionsOut={},habitsOut={};
+ Object.keys({...fallback.dimensions,...dimensionSource}).forEach(id=>{
+  const list=Array.isArray(dimensionSource[id])?dimensionSource[id]:fallback.dimensions[id]||[];
+  dimensionsOut[id]=list.filter(p=>isPlainObject(p)&&validDateKey(p.from)&&(!p.through||validDateKey(p.through))&&(!p.through||p.through>=p.from)).map(p=>({from:p.from,through:p.through||null}));
+ });
+ Object.keys({...fallback.habits,...habitSource}).forEach(id=>{
+  const list=Array.isArray(habitSource[id])?habitSource[id]:fallback.habits[id]||[];
+  habitsOut[id]=list.filter(p=>isPlainObject(p)&&validDateKey(p.from)&&(!p.through||validDateKey(p.through))&&(!p.through||p.through>=p.from)&&Array.isArray(p.allocations)).map(p=>({
+   from:p.from,through:p.through||null,name:String(p.name||"Habit"),
+   allocations:p.allocations.filter(a=>isPlainObject(a)&&typeof a.dimensionId==="string"&&Number.isFinite(Number(a.points))&&Number(a.points)>0).map(a=>({dimensionId:a.dimensionId,dimensionName:String(a.dimensionName||"Dimension"),points:Number(a.points)})),
+   mva:Number.isFinite(Number(p.mva))?Math.min(.5,Math.max(.1,Number(p.mva))):Number(mva)||.25
+  }));
+ });
+ return {dimensions:dimensionsOut,habits:habitsOut};
+}
+function eligibilityPeriodAt(list,date){return (Array.isArray(list)?list:[]).find(p=>periodContains(p,date))||null}
+function replaceEligibilityFrom(list,date,nextPeriod){
+ const prior=(Array.isArray(list)?list:[]).filter(p=>p.from<date).map(p=>!p.through||p.through>=date?{...p,through:shiftDateKey(date,-1)}:p);
+ if(nextPeriod)prior.push(nextPeriod);
+ return prior;
+}
+function makeHabitEligibilityPeriod(h,date){
+ return {from:date,through:null,name:h.name,allocations:(h.points||[]).map(a=>({dimensionId:a.dimensionId,dimensionName:D(a.dimensionId)?.name||"Dimension",points:Number(a.points)||0})).filter(a=>a.points>0),mva:Number(data.settings.mva)||.25};
+}
+function refreshHabitEligibility(h,date=today()){
+ if(!data.eligibility)data.eligibility={dimensions:{},habits:{}};
+ data.eligibility.habits[h.id]=replaceEligibilityFrom(data.eligibility.habits[h.id]||[],date,h.active&&!h.archived&&h.points?.length?makeHabitEligibilityPeriod(h,date):null);
+}
+function refreshDimensionEligibility(d,date=today()){
+ if(!data.eligibility)data.eligibility={dimensions:{},habits:{}};
+ data.eligibility.dimensions[d.id]=replaceEligibilityFrom(data.eligibility.dimensions[d.id]||[],date,d.active!==false&&!d.archived?{from:date,through:null}:null);
+}
+function eligibilityHabitPeriod(habitId,date){return eligibilityPeriodAt(data.eligibility?.habits?.[habitId],date)}
+function eligibleHabitIdsForDate(date){
+ if(!validDateKey(date)||date<(data.settings.trackingStartDate||today())||date>today()||isSpecialDay(date))return [];
+ const out=[];
+ Object.entries(data.eligibility?.habits||{}).forEach(([id,history])=>{
+  if(!H(id))return;
+  const p=eligibilityPeriodAt(history,date);if(!p)return;
+  if((p.allocations||[]).some(a=>eligibilityPeriodAt(data.eligibility?.dimensions?.[a.dimensionId],date)))out.push(id);
+ });
+ return out.sort((a,b)=>(H(a)?.name||"").localeCompare(H(b)?.name||""));
+}
+function snapshotForHabitDate(h,date){
+ const p=h?eligibilityHabitPeriod(h.id,date):null;
+ const allocations=(p?.allocations||snapshot(h).points).filter(a=>eligibilityPeriodAt(data.eligibility?.dimensions?.[a.dimensionId],date));
+ return {habitId:h?.id||"",name:p?.name||h?.name||"Habit",poolName:P(h?.poolId)?.name||"Habit Library",
+  points:allocations.map(a=>({dimensionId:a.dimensionId,dimensionName:a.dimensionName||D(a.dimensionId)?.name||"Archived Dimension",points:Number(a.points)||0})),
+  mva:Number.isFinite(Number(p?.mva))?Number(p.mva):Number(data.settings.mva)||.25};
+}
+function ensureDateRecord(date){if(!data.records[date])data.records[date]={date,items:{}};if(!isPlainObject(data.records[date].items))data.records[date].items={};return data.records[date]}
+function cleanupDateRecord(date){
+ const r=data.records[date];if(!r)return;
+ const hasItems=Object.values(r.items||{}).some(item=>["completed","mva","missed"].includes(item?.status));
+ const hasAck=Array.isArray(r.acknowledgedUnrecordedIds)&&r.acknowledgedUnrecordedIds.length>0;
+ if(!hasItems&&!r.specialDay&&!String(r.specialNote||"").trim()&&!hasAck)delete data.records[date];
+}
+function removePendingReconciliation(date,id){
+ data.settings.pendingReconciliation=(data.settings.pendingReconciliation||[]).map(x=>x.date===date?{...x,habitIds:x.habitIds.filter(hid=>hid!==id)}:x).filter(x=>x.habitIds.length);
+}
+function queueReconciliationItem(date,id){
+ if(date<(data.settings.trackingStartDate||today())||date>=today()||isSpecialDay(date)||!eligibleHabitIdsForDate(date).includes(id))return;
+ const pending=data.settings.pendingReconciliation||(data.settings.pendingReconciliation=[]);
+ let row=pending.find(x=>x.date===date);if(!row){row={date,habitIds:[]};pending.push(row)}
+ if(!row.habitIds.includes(id))row.habitIds.push(id);
+ pending.sort((a,b)=>a.date.localeCompare(b.date));
+}
+function persistWithoutRender(){
+ try{localStorage.setItem("habit-radar-state",JSON.stringify(data));$("#storageDot").classList.add("saved");$("#storageText").textContent="Saved In This Browser"}
+ catch(e){$("#storageText").textContent="Export Backup To Save";console.warn(e)}
+ clearTimeout(saveTimer);saveTimer=setTimeout(saveFolder,250);
+}
+
 let period="1m",view="overview",selectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,lastTouchedHabitId=null,draggedDimensionId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
 function sampleStructure(){
  const dims=[["health","Health",COLORS[0]],["academics","Academics",COLORS[1]],["relationships","Relationships",COLORS[2]],["looks","Looksmaxxing",COLORS[3]]].map(([id,name,color])=>({id:"d-"+id,name,color,benchmark:1000,archived:false}));
@@ -27,7 +120,9 @@ function sampleData(){
  for(let offset=89;offset>=0;offset--){const dt=new Date(todayDate);dt.setDate(dt.getDate()-offset);const date=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0"),items={};
  habits.forEach((h,index)=>{const seed=(offset*7+index*11+index*index)%19;if(seed===0||seed===7||seed===14)return;const status=cycle[(offset*3+index*5+Math.floor(offset/6))%cycle.length],p=pools.find(x=>x.id===h.poolId);items[h.id]={status,snapshot:{habitId:h.id,name:h.name,poolName:p?.name||"Habit Library",points:h.points.map(x=>({dimensionId:x.dimensionId,dimensionName:dims.find(d=>d.id===x.dimensionId)?.name||"Dimension",points:x.points})),mva:.25},updatedAt:new Date(dt.getTime()+index*60000).toISOString()};});
  if(Object.keys(items).length)records[date]={date,items};}
- return {version:2,visualVersion:2,settings,dimensions:dims,pools,habits,records};
+ const firstDate=Object.keys(records).sort()[0]||today();
+ settings.trackingStartDate=firstDate;settings.lastReconciledThrough=shiftDateKey(today(),-1);settings.pendingReconciliation=[];
+ return {version:3,visualVersion:2,settings,dimensions:dims,pools,habits,records,eligibility:buildEligibilityBaseline(dims,habits,firstDate,settings.mva)};
 }
 function safeColor(value,fallback){
  const v=String(value||"").trim();
@@ -50,37 +145,45 @@ function validateBackupPayload(value){
    }
   });
  }
+ if(value.eligibility!==undefined&&!isPlainObject(value.eligibility))throw new Error("Eligibility history is malformed.");
  Object.entries(value.records||{}).forEach(([date,record])=>{
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!isPlainObject(record)||!isPlainObject(record.items))throw new Error("A historical record is malformed.");
+  if(!validDateKey(date)||!isPlainObject(record)||!isPlainObject(record.items))throw new Error("A historical record is malformed.");
+  if(record.specialDay!==undefined&&typeof record.specialDay!=="boolean")throw new Error("A special-day flag is malformed.");
+  if(record.specialNote!==undefined&&typeof record.specialNote!=="string")throw new Error("A special-day note is malformed.");
+  if(record.acknowledgedUnrecordedIds!==undefined&&(!Array.isArray(record.acknowledgedUnrecordedIds)||record.acknowledgedUnrecordedIds.some(id=>typeof id!=="string")))throw new Error("Reconciliation acknowledgements are malformed.");
   Object.values(record.items).forEach(item=>{
    if(!isPlainObject(item)||!["completed","mva","missed"].includes(item.status)||!isPlainObject(item.snapshot)||!Array.isArray(item.snapshot.points))throw new Error("A historical habit entry is malformed.");
    item.snapshot.points.forEach(point=>{if(!isPlainObject(point)||typeof point.dimensionId!=="string"||!Number.isFinite(Number(point.points)))throw new Error("A historical point allocation is malformed.")});
   });
  });
+ const settings=isPlainObject(value.settings)?value.settings:{};
+ if(settings.trackingStartDate!==undefined&&!validDateKey(settings.trackingStartDate))throw new Error("Tracking start date is malformed.");
+ if(settings.lastReconciledThrough!==undefined&&!validDateKey(settings.lastReconciledThrough))throw new Error("Reconciliation cursor is malformed.");
+ if(settings.pendingReconciliation!==undefined&&(!Array.isArray(settings.pendingReconciliation)||settings.pendingReconciliation.some(x=>!isPlainObject(x)||!validDateKey(x.date)||!Array.isArray(x.habitIds)||x.habitIds.some(id=>typeof id!=="string"))))throw new Error("Pending reconciliation data is malformed.");
  return value;
 }
 function normalize(x){
  if(!isPlainObject(x))return sampleData();
- const base=sampleStructure(),oldVisualVersion=Number(x.visualVersion)||0;
- const dimensions=(Array.isArray(x.dimensions)?x.dimensions:base.dims).map((d,i)=>({
-  ...d,
-  color:oldVisualVersion>=2?safeColor(d.color,DIMENSION_COLORS[i%DIMENSION_COLORS.length]):DIMENSION_COLORS[i%DIMENSION_COLORS.length],
-  active:d.active!==false&&!d.archived,
-  archived:false
- }));
- const habits=(Array.isArray(x.habits)?x.habits:base.habits).map(h=>({
-  ...h,
-  points:Array.isArray(h.points)?h.points.filter(a=>a&&a.dimensionId).map(a=>({...a,points:Number(a.points)||0})):[],
-  active:h.active!==false&&!h.archived,
-  archived:false,
-  poolId:h.poolId??null
- }));
- const incomingSettings=isPlainObject(x.settings)?x.settings:{};
+ const base=sampleStructure(),oldVisualVersion=Number(x.visualVersion)||0,incomingSettings=isPlainObject(x.settings)?x.settings:{};
+ const requestedStart=validDateKey(incomingSettings.trackingStartDate)?incomingSettings.trackingStartDate:today();
+ const trackingStartDate=requestedStart>today()?today():requestedStart;
  const mva=Number(incomingSettings.mva),benchmark=Number(incomingSettings.defaultBenchmark);
- return {version:2,visualVersion:2,settings:{
-  mva:Number.isFinite(mva)?Math.min(.5,Math.max(.1,mva)):base.settings.mva,
-  defaultBenchmark:Number.isFinite(benchmark)?Math.max(1,benchmark):base.settings.defaultBenchmark
- },dimensions,pools:Array.isArray(x.pools)?x.pools:[],habits,records:isPlainObject(x.records)?x.records:{}};
+ const dimensions=(Array.isArray(x.dimensions)?x.dimensions:base.dims).map((d,i)=>({...d,
+  color:oldVisualVersion>=2?safeColor(d.color,DIMENSION_COLORS[i%DIMENSION_COLORS.length]):DIMENSION_COLORS[i%DIMENSION_COLORS.length],
+  active:d.active!==false&&!d.archived,archived:false
+ }));
+ const habits=(Array.isArray(x.habits)?x.habits:base.habits).map(h=>({...h,
+  points:Array.isArray(h.points)?h.points.filter(a=>a&&a.dimensionId).map(a=>({...a,points:Number(a.points)||0})):[],
+  active:h.active!==false&&!h.archived,archived:false,poolId:h.poolId??null
+ }));
+ const defaultMva=Number.isFinite(mva)?Math.min(.5,Math.max(.1,mva)):base.settings.mva;
+ const eligibility=normalizeEligibility(x.eligibility,dimensions,habits,trackingStartDate,defaultMva);
+ const pending=Array.isArray(incomingSettings.pendingReconciliation)?incomingSettings.pendingReconciliation.filter(row=>isPlainObject(row)&&validDateKey(row.date)&&Array.isArray(row.habitIds)).map(row=>({date:row.date,habitIds:Array.from(new Set(row.habitIds.filter(id=>typeof id==="string")))})).filter(row=>row.habitIds.length):[];
+ return {version:3,visualVersion:2,settings:{mva:defaultMva,
+  defaultBenchmark:Number.isFinite(benchmark)?Math.max(1,benchmark):base.settings.defaultBenchmark,
+  trackingStartDate,lastReconciledThrough:validDateKey(incomingSettings.lastReconciledThrough)?incomingSettings.lastReconciledThrough:shiftDateKey(today(),-1),
+  pendingReconciliation:pending
+ },dimensions,pools:Array.isArray(x.pools)?x.pools:[],habits,records:isPlainObject(x.records)?x.records:{},eligibility};
 }
 let data;
 try{
