@@ -1107,3 +1107,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 #dimensionCards .library-inactive summary:focus-visible{
  outline:1px solid var(--dimension-accent);outline-offset:3px;border-radius:4px;
 }
+
+/* Habit Library: permanent delete control */
+.library-delete{color:#8b6872}
+.library-delete:hover{border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.09);color:#fb8585;box-shadow:0 0 12px rgba(248,113,113,.12)}
