@@ -1291,3 +1291,19 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
  .reconciliation-actions{justify-content:flex-start}
  .reconciliation-footer{align-items:flex-start;flex-direction:column;padding:12px 16px}
 }
+
+/* Archive actions belong to their date rows, not the quadrant header. */
+.archive-entry{border-bottom:1px solid rgba(66,77,95,.35)}
+.archive-entry-main{display:flex;align-items:stretch;gap:3px}
+.archive-entry .archive-row{flex:1;min-width:0;border:0;border-radius:5px}
+.archive-row{grid-template-columns:minmax(0,1fr) auto auto auto}
+.archive-row-star{width:25px;flex:none;border:0;border-radius:5px;background:transparent;color:#8995a8;font-size:13px;opacity:0;transition:opacity .16s ease,color .16s ease,background .16s ease}
+.archive-entry-main:hover .archive-row-star,.archive-row-star:focus-visible,.archive-row-star.is-special{opacity:1}
+.archive-row-star:hover,.archive-row-star.is-special{color:#e7bd76;background:rgba(245,190,103,.07)}
+.archive-inline-note{display:flex;align-items:center;gap:7px;padding:0 34px 7px 9px}
+.archive-inline-note textarea{flex:1;min-width:0;min-height:27px;max-height:48px;resize:vertical;padding:5px 7px;border:1px solid rgba(245,190,103,.2);border-radius:5px;background:rgba(245,190,103,.035);color:#d9dce4;font:9px/1.4 inherit}
+.archive-inline-note textarea::placeholder{color:#817c70}
+.archive-inline-note button{padding:4px 7px;border:0;background:transparent;color:#e7bd76;font-size:9px}
+.archive-row.is-special .archive-count{color:#e7bd76}
+.quadrant-archive .daily-archive{max-height:275px;overflow-y:auto}
+@media(max-width:760px){.archive-row-star{opacity:.8}.quadrant-archive .daily-archive{max-height:310px}}
