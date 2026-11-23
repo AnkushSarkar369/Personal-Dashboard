@@ -134,6 +134,108 @@ function setSidebarOpen(open){
  button.setAttribute("aria-expanded",String(open));
  try{localStorage.setItem("habitRadarSidebarOpen",open?"1":"0")}catch(e){}
 }
+let radarAtmosphereController=null;
+function syncRadarAtmosphere(){
+ const canvas=$(".radar-atmosphere");
+ if(!canvas)return;
+ if(!radarAtmosphereController)radarAtmosphereController=createRadarAtmosphere(canvas);
+ radarAtmosphereController?.setActive($("#view-overview")?.classList.contains("active"));
+}
+function createRadarAtmosphere(canvas){
+ let ctx;
+ try{ctx=canvas.getContext("2d",{alpha:true})}catch(e){return {setActive(){}}}
+ if(!ctx)return {setActive(){}};
+ const motionQuery=window.matchMedia?window.matchMedia("(prefers-reduced-motion: reduce)"):null;
+ const palette=["224,235,255","174,205,255","136,226,231","205,186,255","255,225,190"];
+ let width=0,height=0,dpr=1,particles=[],raf=0,lastFrame=0,active=false;
+ const random=(min,max)=>min+Math.random()*(max-min);
+ function seedParticles(){
+  const count=Math.min(58,Math.max(28,Math.round(width*height/26000)));
+  particles=Array.from({length:count},()=>({
+   x:random(0,width),y:random(0,height),
+   vx:random(-.11,.11),vy:random(-.085,.085),
+   radius:random(.38,1.05),alpha:random(.12,.34),
+   phase:random(0,Math.PI*2),speed:random(.00035,.00085),
+   rgb:palette[Math.floor(Math.random()*palette.length)],
+   glow:Math.random()<.15
+  }));
+ }
+ function draw(now,advance){
+  if(!width||!height)return;
+  if(advance){
+   const step=lastFrame?Math.min(2.2,(now-lastFrame)/40):1;
+   particles.forEach(p=>{
+    p.x+=p.vx*step;p.y+=p.vy*step;
+    if(p.x<-8)p.x=width+8;else if(p.x>width+8)p.x=-8;
+    if(p.y<-8)p.y=height+8;else if(p.y>height+8)p.y=-8;
+   });
+  }
+  ctx.clearRect(0,0,width,height);
+  ctx.lineWidth=.55;
+  for(let i=0;i<particles.length;i++){
+   const a=particles[i];
+   for(let j=i+1;j<particles.length;j++){
+    const b=particles[j],dx=a.x-b.x,dy=a.y-b.y,dist=Math.hypot(dx,dy);
+    if(dist<96){
+     ctx.strokeStyle="rgba(151,184,222,"+((1-dist/96)*.045)+")";
+     ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    }
+   }
+  }
+  particles.forEach(p=>{
+   const wave=.5+.5*Math.sin((motionQuery?.matches?0:now)*p.speed+p.phase);
+   const alpha=p.alpha*(.38+wave*.62);
+   if(p.glow){
+    const spread=p.radius*7,glow=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,spread);
+    glow.addColorStop(0,"rgba("+p.rgb+","+(alpha*.22)+")");
+    glow.addColorStop(1,"rgba("+p.rgb+",0)");
+    ctx.fillStyle=glow;ctx.fillRect(p.x-spread,p.y-spread,spread*2,spread*2);
+   }
+   ctx.globalAlpha=alpha;ctx.fillStyle="rgb("+p.rgb+")";
+   ctx.beginPath();ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);ctx.fill();
+   if(p.glow&&wave>.9){
+    const glint=(wave-.9)*10*alpha;
+    ctx.globalAlpha=glint;ctx.strokeStyle="rgb("+p.rgb+")";ctx.lineWidth=.65;
+    ctx.beginPath();ctx.moveTo(p.x-p.radius*2.8,p.y);ctx.lineTo(p.x+p.radius*2.8,p.y);
+    ctx.moveTo(p.x,p.y-p.radius*2.8);ctx.lineTo(p.x,p.y+p.radius*2.8);ctx.stroke();
+   }
+  });
+  ctx.globalAlpha=1;
+ }
+ function resize(){
+  const rect=canvas.getBoundingClientRect();
+  width=Math.max(1,rect.width);height=Math.max(1,rect.height);
+  dpr=Math.min(window.devicePixelRatio||1,1.35);
+  canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  seedParticles();draw(performance.now(),false);
+ }
+ function stop(){if(raf)cancelAnimationFrame(raf);raf=0}
+ function frame(now){
+  raf=0;
+  if(!active||document.hidden||motionQuery?.matches)return;
+  if(now-lastFrame>=40){draw(now,true);lastFrame=now}
+  raf=requestAnimationFrame(frame);
+ }
+ function start(){
+  if(!active||document.hidden)return;
+  if(motionQuery?.matches){stop();draw(performance.now(),false);return}
+  if(!raf){lastFrame=performance.now();raf=requestAnimationFrame(frame)}
+ }
+ function setActive(next){
+  active=!!next;
+  if(!active){stop();return}
+  resize();start();
+ }
+ window.addEventListener("resize",resize,{passive:true});
+ document.addEventListener("visibilitychange",()=>active?(document.hidden?stop():start()):null);
+ if(motionQuery){
+  const onMotionChange=()=>{if(!active)return;if(motionQuery.matches){stop();draw(performance.now(),false)}else start()};
+  if(motionQuery.addEventListener)motionQuery.addEventListener("change",onMotionChange);
+  else if(motionQuery.addListener)motionQuery.addListener(onMotionChange);
+ }
+ return {setActive};
+}
 function renderActiveView(){
  if(view==="overview")renderOverview();
  else if(view==="tracker")renderTracker();
@@ -142,7 +244,7 @@ function renderActiveView(){
  else if(view==="stats")renderStats();
  else if(view==="settings")renderSettings();
 }
-function render(){const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["","Habit Library"],stats:["","Statistics"],settings:["","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderActiveView();applyTitleCase()}
+function render(){const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["","Habit Library"],stats:["","Statistics"],settings:["","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderActiveView();applyTitleCase();syncRadarAtmosphere()}
 let activeDim=null;
 function dimIndex(i){return String(i+1).padStart(2,"0")}
 function dimColor(d,i){return safeColor(d.color,DIMENSION_COLORS[i%DIMENSION_COLORS.length])}
