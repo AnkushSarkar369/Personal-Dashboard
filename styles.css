@@ -905,3 +905,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 .library-intro-rule{display:flex;align-items:center;gap:12px;color:#697588;font-size:8px;font-weight:750;letter-spacing:.16em}.library-intro-rule i{height:1px;flex:1;background:linear-gradient(90deg,rgba(180,154,255,.45),rgba(66,77,95,.25))}
 .library-quote{margin:11px 0 0;color:#929caf;font-family:Georgia,"Times New Roman",serif;font-size:12px;font-style:italic;line-height:1.6}
 @media(max-width:760px){.stats-quadrants{grid-template-areas:"leaders" "weekday" "graph" "archive"}.library-title-row{align-items:flex-start;flex-direction:column;gap:13px}.library-counts{align-self:flex-start}.library-kicker{font-size:8px;letter-spacing:.13em}.library-title-lockup h2{font-size:39px}.archive-open{opacity:.8}}
+
+/* Keep the four statistics panels on a common, content-independent height. */
+.stats-quadrants{grid-auto-rows:360px;align-items:stretch}
+.stats-quadrant{height:360px;min-height:0;overflow:hidden}
+.habit-leaders{gap:9px;margin-top:10px}
+.leader-category{padding-bottom:8px}
+.leader-row{padding:4px 2px}
+.leader-more{padding:4px 2px 0;color:#9b8bc8;font-size:9px;font-weight:650;letter-spacing:.02em}
+@media(max-width:760px){.stats-quadrants{grid-auto-rows:320px}.stats-quadrant{height:320px;min-height:0}}
