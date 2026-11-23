@@ -59,13 +59,13 @@ function titleCase(s){
   return acronyms[lower]||(lower.length===1?lower.toUpperCase():lower[0].toUpperCase()+lower.slice(1));
  });
 }
-function dimensionLabel(name){return String(name??"").trim().toUpperCase();}
+function dimensionLabel(name){return String(name??"").trim();}
 function applyTitleCase(){
  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),nodes=[];
  while(walker.nextNode())if(walker.currentNode.nodeValue.trim())nodes.push(walker.currentNode);
  nodes.forEach(node=>{if(!node.parentElement.closest("script,style,[data-dimension-name],[data-preserve-case]"))node.nodeValue=titleCase(node.nodeValue)});
  document.querySelectorAll("[title],[aria-label],[placeholder]").forEach(el=>{
-  if(el.matches("[data-open-dimension],[data-edit-dimension],[data-modal-points]"))return;
+  if(el.matches("[data-open-dimension],[data-edit-dimension],[data-add-habit-dimension],[data-modal-points]"))return;
   ["title","aria-label","placeholder"].forEach(attr=>{if(el.hasAttribute(attr))el.setAttribute(attr,titleCase(el.getAttribute(attr)))});
  });
 }
@@ -97,39 +97,74 @@ function setSidebarOpen(open){
  try{localStorage.setItem("habitRadarSidebarOpen",open?"1":"0")}catch(e){}
 }
 function render(){const statHabit=H(selectedStatsHabit);const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["","Habit Library"],stats:["","Statistics"],settings:["","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderOverview();renderTracker();renderHabitStats();renderLibrary();renderStats();renderSettings();applyTitleCase()}
-function renderOverview(){
- const ds=data.dimensions.filter(d=>!d.archived);
- drawRadar(ds,period);
+const PERIOD_LABELS={"1m":"Last 30 Days","3m":"Last 90 Days","all":"All Recorded Activity"};
+let activeDim=null;
+function dimIndex(i){return String(i+1).padStart(2,"0")}
+function dimColor(d,i){return safeColor(d.color,DIMENSION_COLORS[i%DIMENSION_COLORS.length])}
+function joinNames(list){return list.length<2?list.join(""):list.slice(0,-1).join(", ")+" and "+list[list.length-1]}
+function insightName(d,i){return '<span class="insight-name" data-dimension-name="true" style="color:'+esc(dimColor(d,i))+'">'+esc(dimensionLabel(d.name))+'</span>'}
+function overviewInsight(ds,vals){
+ if(!ds.length)return "";
+ if(ds.length===1)return 'Only '+insightName(ds[0],0)+' is tracked, so there is no balance to compare yet.';
+ const hi=Math.max(...vals),lo=Math.min(...vals);
+ if(hi<=0)return 'No activity recorded in this period.';
+ if(hi-lo<1e-9)return 'Level across every dimension, each at '+fmt(hi)+' points.';
+ const pick=v=>ds.map((d,i)=>Math.abs(vals[i]-v)<1e-9?insightName(d,i):null).filter(Boolean);
+ return '<em>Strongest:</em> '+joinNames(pick(hi))+'. <em>Lagging:</em> '+joinNames(pick(lo))+'.';
 }
-function drawRadar(ds,range){
- const svg=$("#radar"),cx=500,cy=380,r=230,n=ds.length;
- svg.setAttribute("viewBox","0 0 1000 760");
- svg.setAttribute("preserveAspectRatio","xMidYMid meet");
- if(!n){svg.innerHTML='<text x="500" y="380" text-anchor="middle" fill="#8993a2" font-size="18">Create your first life dimension</text>';return}
- const vals=ds.map(d=>rawPoints(d.id,range)),max=Math.max(25,...vals)*1.18;
- const xy=(i,k)=>{const a=-Math.PI/2+i*2*Math.PI/n;return[cx+Math.cos(a)*r*k,cy+Math.sin(a)*r*k]};
- let defs='<defs><radialGradient id="coreGlow"><stop offset="0" stop-color="#ffffff" stop-opacity=".18"/><stop offset=".55" stop-color="#a88cff" stop-opacity=".07"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient><linearGradient id="radarFill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4a8ff" stop-opacity=".25"/><stop offset=".5" stop-color="#75e8ce" stop-opacity=".10"/><stop offset="1" stop-color="#72a8ff" stop-opacity=".18"/></linearGradient><filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
- let out=defs+'<g class="star-field">';
- let seed=82471;
- const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
- for(let i=0;i<58;i++){
-  const sx=10+random()*980,sy=10+random()*740,size=.55+random()*.95,peak=(.34+random()*.34).toFixed(2),duration=(3.5+random()*4.5).toFixed(2),delay=(-random()*8).toFixed(2);
-  out+='<circle class="star" cx="'+sx.toFixed(1)+'" cy="'+sy.toFixed(1)+'" r="'+size.toFixed(2)+'" style="--star-peak:'+peak+';--twinkle:'+duration+'s;animation-delay:'+delay+'s"/>';
- }
- out+='</g><circle cx="'+cx+'" cy="'+cy+'" r="310" fill="url(#coreGlow)"/>';
- [.25,.5,.75,1].forEach(k=>out+='<polygon class="radar-grid" points="'+ds.map((d,i)=>xy(i,k).join(",")).join(" ")+'"/>');
- ds.forEach((d,i)=>{const q=xy(i,1);out+='<line class="radar-axis" x1="'+cx+'" y1="'+cy+'" x2="'+q[0]+'" y2="'+q[1]+'" style="stroke:'+esc(d.color)+';stroke-opacity:.48"/><circle class="radar-orbit" cx="'+q[0]+'" cy="'+q[1]+'" r="5" style="stroke:'+esc(d.color)+'"/>'});
- const points=ds.map((d,i)=>xy(i,vals[i]/max).join(",")).join(" ");
- out+='<polygon class="radar-shape" points="'+points+'"/>';
- ds.forEach((d,i)=>{
-  const a=-Math.PI/2+i*2*Math.PI/n,p=xy(i,vals[i]/max),label=xy(i,1.27),anchor=Math.cos(a)>.2?"start":Math.cos(a)<-.2?"end":"middle";
-  out+='<circle class="radar-node-glow" cx="'+p[0]+'" cy="'+p[1]+'" r="15" fill="'+esc(d.color)+'"/>'+
-   '<circle class="radar-node" cx="'+p[0]+'" cy="'+p[1]+'" r="5.5" fill="'+esc(d.color)+'"/>'+
-   '<circle class="radar-point" cx="'+p[0]+'" cy="'+p[1]+'" r="2.3" style="fill:#fff;filter:url(#softGlow)"/>'+
-   '<text class="radar-label" data-dimension-name="true" x="'+label[0]+'" y="'+(label[1]-6)+'" text-anchor="'+anchor+'" style="fill:'+esc(d.color)+';color:'+esc(d.color)+'">'+esc(dimensionLabel(d.name))+'</text>'+
-   '<text class="radar-value" x="'+label[0]+'" y="'+(label[1]+15)+'" text-anchor="'+anchor+'">'+fmt(vals[i])+' pts</text>';
+function setActiveDim(id){
+ id=id||null;if(id===activeDim)return;activeDim=id;
+ const plate=document.querySelector(".plate-screen");if(!plate)return;
+ plate.classList.toggle("has-active",!!id);
+ plate.querySelectorAll("[data-dim]").forEach(el=>el.classList.toggle("is-active",!!id&&el.dataset.dim===id));
+}
+function renderOverview(){
+ const ds=data.dimensions.filter(d=>!d.archived),vals=ds.map(d=>rawPoints(d.id,period)),total=vals.reduce((a,b)=>a+b,0);
+ activeDim=null;$(".plate-screen").classList.remove("has-active");
+ const dp=Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Kolkata",weekday:"long",day:"numeric",month:"long",year:"numeric"}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+ $("#mastheadDate").innerHTML='<em>'+esc(dp.weekday)+'</em> '+esc(dp.day+" "+dp.month+" "+dp.year);
+ $("#mastheadPeriod").textContent=PERIOD_LABELS[period]||PERIOD_LABELS["1m"];
+ $("#mastheadTotal").textContent=fmt(total);
+ drawRadar(ds,vals);
+ renderLedger(ds,vals);
+ const insight=$("#insight");insight.innerHTML=overviewInsight(ds,vals);insight.hidden=!ds.length;
+}
+function renderLedger(ds,vals){
+ const host=$("#ledger");
+ if(!ds.length){host.innerHTML="";host.hidden=true;return}
+ host.hidden=false;
+ const max=Math.max(25,...vals)*1.18;
+ host.innerHTML='<div class="ledger-head"><span>Dimension</span><span>Points</span></div>'+ds.map((d,i)=>{
+  const name=esc(dimensionLabel(d.name));
+  return '<div class="ledger-row" role="button" tabindex="0" data-dim="'+esc(d.id)+'" data-open-dimension="'+esc(d.id)+'" aria-label="Open '+name+' in Habit Library, '+fmt(vals[i])+' points" style="--dimension-accent:'+esc(dimColor(d,i))+'"><span class="ledger-index">'+dimIndex(i)+'</span><span class="ledger-name plate-name" data-dimension-name="true">'+name+'</span><span class="ledger-points">'+fmt(vals[i])+'</span><i class="ledger-bar"><b style="width:'+Math.min(100,vals[i]/max*100).toFixed(1)+'%"></b></i></div>';
+ }).join("");
+}
+function drawRadar(ds,vals){
+ const svg=$("#radar"),cx=380,cy=380,r=290,n=ds.length;
+ if(!n){svg.innerHTML='<text class="radar-empty" x="380" y="384" text-anchor="middle">Create your first dimension</text>';return}
+ const max=Math.max(25,...vals)*1.18;
+ const ang=i=>-Math.PI/2+i*2*Math.PI/n;
+ const at=(i,k)=>[cx+Math.cos(ang(i))*r*k,cy+Math.sin(ang(i))*r*k];
+ const pt=a=>a[0].toFixed(1)+" "+a[1].toFixed(1);
+ const mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];
+ const P=ds.map((d,i)=>at(i,vals[i]/max));
+ const accent=ds.map((d,i)=>'--dimension-accent:'+esc(dimColor(d,i)));
+ let out='<g class="radar-rings">';
+ [.25,.5,.75,1].forEach(k=>{out+='<circle class="radar-ring'+(k===1?' is-outer':'')+'" cx="'+cx+'" cy="'+cy+'" r="'+(r*k)+'"/><text class="radar-ring-label" x="'+(cx+6)+'" y="'+(cy-r*k+13)+'">'+Math.round(max*k)+'</text>'});
+ out+='</g>';
+ ds.forEach((d,i)=>{const t=at(i,1),ix=at(i,1.115);
+  out+='<g class="radar-tip" data-dim="'+esc(d.id)+'" style="'+accent[i]+'"><line class="radar-axis" x1="'+cx+'" y1="'+cy+'" x2="'+t[0].toFixed(1)+'" y2="'+t[1].toFixed(1)+'"/><circle class="radar-end" cx="'+t[0].toFixed(1)+'" cy="'+t[1].toFixed(1)+'" r="2.6"/><text class="radar-index" x="'+ix[0].toFixed(1)+'" y="'+ix[1].toFixed(1)+'" text-anchor="middle" dominant-baseline="central">'+dimIndex(i)+'</text></g>';
  });
- out+='<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#f4edff"/>';
+ out+='<g class="radar-data">';
+ ds.forEach((d,i)=>{
+  const p=P[i];let shape;
+  if(n>=3){
+   const m1=mid(P[(i-1+n)%n],p),m2=mid(p,P[(i+1)%n]);
+   shape='<polygon class="radar-sector" points="'+[[cx,cy],m1,p,m2].map(pt).join(",")+'"/><path class="radar-edge" d="M'+pt(m1)+' L'+pt(p)+' L'+pt(m2)+'"/>';
+  }else shape='<line class="radar-spoke" x1="'+cx+'" y1="'+cy+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'"/>';
+  out+='<g class="radar-dim" data-dim="'+esc(d.id)+'" style="'+accent[i]+'">'+shape+'<circle class="radar-node" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="5"/></g>';
+ });
+ out+='</g><circle class="radar-center" cx="'+cx+'" cy="'+cy+'" r="2.5"/>';
  svg.innerHTML=out;
 }
 function renderTracker(){
@@ -173,11 +208,21 @@ function renderHabitStats(){
   entries.slice().reverse().map(({date,item})=>'<tr><td>'+formatOrdinalDate(new Date(date+"T12:00:00+05:30"))+'</td><td>'+titleCase(item.status==="mva"?"MVA":item.status)+'</td><td>'+fmt(pointsFor(item.snapshot,item.status))+'</td></tr>').join("")+
   '</tbody></table>':'<div class="empty-state">No Activity Recorded In This Period.</div>';
 }
+function dimensionGlyph(i,n,color){
+ const c=16,r=13,ang=k=>-Math.PI/2+k*2*Math.PI/n,at=k=>[c+Math.cos(ang(k))*r,c+Math.sin(ang(k))*r],pt=a=>a[0].toFixed(1)+" "+a[1].toFixed(1);
+ let body;
+ if(n>=3){
+  const pts=Array.from({length:n},(_,k)=>at(k)),a=pts[(i-1+n)%n],p=pts[i],b=pts[(i+1)%n];
+  const m1=[(a[0]+p[0])/2,(a[1]+p[1])/2],m2=[(p[0]+b[0])/2,(p[1]+b[1])/2];
+  body='<polygon class="glyph-outline" points="'+pts.map(pt).join(",")+'"/><polygon class="glyph-sector" points="'+[[c,c],m1,p,m2].map(pt).join(",")+'"/>';
+ }else{const p=at(i);body='<circle class="glyph-outline" cx="16" cy="16" r="13"/><line class="glyph-spoke" x1="16" y1="16" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'"/>'}
+ return '<svg class="dimension-glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false" style="--dimension-accent:'+esc(color)+'">'+body+'</svg>';
+}
 function renderLibrary(){
  const touched=lastTouchedHabitId,host=$("#dimensionCards"),dims=data.dimensions.filter(d=>!d.archived);
  const linked=data.habits.filter(h=>habitAllocations(h).some(a=>dims.some(d=>d.id===a.dimensionId)));
  $("#libraryCounts").innerHTML='<strong>'+String(dims.length).padStart(2,"0")+'</strong> dimensions <span>·</span> <strong>'+String(linked.length).padStart(2,"0")+'</strong> habits';
- host.innerHTML=dims.map(d=>{
+ host.innerHTML=dims.map((d,di)=>{
   const habits=data.habits.filter(h=>habitAllocations(h).some(a=>a.dimensionId===d.id));
   const active=habits.filter(h=>h.active&&!h.archived).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"}));
   const inactive=habits.filter(h=>!h.active||h.archived).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"}));
@@ -185,7 +230,7 @@ function renderLibrary(){
    const allocation=habitAllocations(h).find(a=>a.dimensionId===d.id),shared=habitAllocations(h).length>1,locked=!h.active||h.archived;
    return '<article class="library-habit-row '+(isInactive?'is-inactive ':'')+(shared?'is-shared':'')+(touched===h.id?' just-saved':'')+'" style="--habit-accent:'+esc(habitAccent(h))+'"><button class="library-habit-main" data-edit-habit="'+esc(h.id)+'" aria-label="Edit '+esc(h.name)+'"><span class="library-habit-copy"><strong>'+esc(titleCase(h.name))+'</strong><small>'+fmt(allocation?.points||0)+' pts'+(shared?' <span class="shared-label">Shared</span>':'')+'</small></span></button><button class="library-lock '+(locked?'is-locked':'is-unlocked')+'" data-toggle-habit="'+esc(h.id)+'" aria-label="'+(locked?'Activate ':'Deactivate ')+esc(h.name)+'" title="'+(locked?'Unlock Habit':'Lock Habit')+'">'+(locked?'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7.5-2"></path><path d="M16.5 5.5V10"></path></svg>')+'</button></article>';
   }).join(""):'<div class="library-group-empty">'+(isInactive?'No Inactive Habits':'No Active Habits')+'</div>';
-  return '<article class="dimension-card" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(safeColor(d.color,DIMENSION_COLORS[0]))+'"><header class="dimension-card-header"><div class="dimension-title-wrap"><span class="dimension-color-mark"></span><button class="dimension-name-button" data-edit-dimension="'+esc(d.id)+'" aria-label="Rename '+esc(dimensionLabel(d.name))+'" title="Rename Dimension"><span data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</span></button></div><div class="dimension-header-tools"><button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(dimensionLabel(d.name))+'" title="Add Habit">+</button></div></header><section class="library-group"><div class="library-group-heading"><span>Active</span><span>'+active.length+'</span></div><div class="library-habit-list">'+rows(active,false)+'</div></section><section class="library-group inactive-group"><div class="library-group-heading"><span>Inactive</span><span>'+inactive.length+'</span></div><div class="library-habit-list">'+rows(inactive,true)+'</div></section></article>';
+  return '<article class="dimension-card" data-dimension-card="'+esc(d.id)+'" style="--dimension-accent:'+esc(safeColor(d.color,DIMENSION_COLORS[0]))+'"><header class="dimension-card-header"><div class="dimension-plate-head"><div class="dimension-plate-meta"><span class="dimension-index">'+dimIndex(di)+'</span><i class="dimension-rule"></i><span class="dimension-total" data-preserve-case>'+(active.length?active.length+" active · "+fmt(active.reduce((t,h)=>t+(Number(habitAllocations(h).find(a=>a.dimensionId===d.id)?.points)||0),0))+" pts/day":"None active")+'</span></div><button class="dimension-name-button" data-edit-dimension="'+esc(d.id)+'" aria-label="Rename '+esc(dimensionLabel(d.name))+'" title="Rename Dimension"><span class="plate-name" data-dimension-name="true">'+esc(dimensionLabel(d.name))+'</span></button></div><div class="dimension-header-tools">'+dimensionGlyph(di,dims.length,safeColor(d.color,DIMENSION_COLORS[0]))+'<button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(dimensionLabel(d.name))+'" title="Add Habit">+</button></div></header><section class="library-group"><div class="library-group-heading"><span>Active</span><span>'+active.length+'</span></div><div class="library-habit-list">'+rows(active,false)+'</div></section><section class="library-group inactive-group"><div class="library-group-heading"><span>Inactive</span><span>'+inactive.length+'</span></div><div class="library-habit-list">'+rows(inactive,true)+'</div></section></article>';
  }).join("")+'<button class="add-dimension-card" data-add-dimension><span class="add-dimension-plus">＋</span><strong>Add Dimension</strong><small>Create another area of life</small></button>';
  lastTouchedHabitId=null;
 }
@@ -332,6 +377,9 @@ document.addEventListener("keydown",e=>{
   if(next>=0&&next<list.length)reorderHabits(row.dataset.dragHabit,list[next].id)
  });
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();dataFolder?saveFolder():exportData()}});
+document.addEventListener("mouseover",e=>{if(view!=="overview")return;const t=e.target.closest&&e.target.closest(".plate-screen [data-dim]");setActiveDim(t?t.dataset.dim:null)});
+document.addEventListener("focusin",e=>{const t=e.target.closest&&e.target.closest(".plate-screen [data-dim]");if(t)setActiveDim(t.dataset.dim)});
+document.addEventListener("focusout",e=>{if(e.target.closest&&e.target.closest(".plate-screen [data-dim]"))setActiveDim(null)});
 render();
 try{if(localStorage.getItem("habitRadarSidebarOpen")==="0")setSidebarOpen(false)}catch(e){}
 let lastDay=today();setInterval(()=>{if(view==="tracker"&&selectedDate===today()){const now=new Date(),day=today();$("#liveClock").innerHTML=clockMarkup(now);if(day!==lastDay){lastDay=day;renderTracker()}}},1000);

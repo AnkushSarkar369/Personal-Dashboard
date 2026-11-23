@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b0d12"><title>Habit Radar</title>
-<link rel="stylesheet" href="styles.css?v=20261123-05">
+<link rel="stylesheet" href="styles.css?v=20261123-06">
 </head>
 <body>
 <svg class="icon-library" aria-hidden="true" focusable="false">
@@ -38,9 +38,15 @@
 </header>
 
 <section class="view active" id="view-overview">
-  <div class="character-screen">
-    <div class="character-topline"><div class="segmented" data-period-control><button class="selected" data-period="1m">1M</button><button data-period="3m">3M</button><button data-period="all">All Time</button></div></div>
-    <div class="radar-stage"><svg id="radar" viewBox="0 0 900 660" role="img" aria-label="Living Character Progression Radar"></svg></div>
+  <div class="plate-screen" data-preserve-case>
+    <header class="masthead">
+      <div class="masthead-date"><div class="eyebrow">Your Character</div><h2 id="mastheadDate"></h2></div>
+      <div class="masthead-figure"><div class="eyebrow" id="mastheadPeriod">Last 30 Days</div><div class="masthead-total"><strong id="mastheadTotal">0</strong><span>points</span></div></div>
+      <div class="segmented" data-period-control><button class="selected" data-period="1m">1M</button><button data-period="3m">3M</button><button data-period="all">All Time</button></div>
+    </header>
+    <div class="radar-plate"><svg id="radar" viewBox="0 0 760 760" role="img" aria-label="Radar of points by dimension"></svg></div>
+    <div class="ledger" id="ledger"></div>
+    <p class="insight" id="insight"></p>
   </div>
 </section>
 
@@ -99,5 +105,5 @@
 </main></div>
 <div class="library-modal" id="libraryModal" hidden></div>
 <div class="toast" id="toast" role="status"></div>
-<script src="app.js?v=20261123-05"></script>
+<script src="app.js?v=20261123-06"></script>
 </body></html>
