@@ -412,7 +412,7 @@ function drawRadar(ds,vals){
   const anchor=compact?"middle":(c>.2?"start":c<-.2?"end":"middle");
   let ly=L[1];if(s<-.6)ly-=12;else if(s>.6)ly+=14;
   const name=esc(dimensionLabel(d.name));
-  out+='<g class="radar-tip" role="button" tabindex="0" data-dim="'+esc(d.id)+'" data-open-dimension="'+esc(d.id)+'" aria-label="Open '+name+' in Habit Library" style="--dimension-accent:'+col[i]+'"><line class="radar-axis" x1="'+cx+'" y1="'+cy+'" x2="'+f(t[0])+'" y2="'+f(t[1])+'"/><circle class="radar-end" cx="'+f(t[0])+'" cy="'+f(t[1])+'" r="3"/><text class="radar-index" x="'+f(L[0])+'" y="'+f(ly-15)+'" text-anchor="'+anchor+'" dominant-baseline="central">'+dimIndex(i)+'</text><text class="radar-name" data-dimension-name="true" x="'+f(L[0])+'" y="'+f(ly+8)+'" text-anchor="'+anchor+'" dominant-baseline="central">'+name+'</text></g>';
+  out+='<g class="radar-tip" role="button" tabindex="0" data-dim="'+esc(d.id)+'" data-open-dimension="'+esc(d.id)+'" aria-label="Open '+name+' in Habit Library" style="--dimension-accent:'+col[i]+'"><line class="radar-axis" x1="'+cx+'" y1="'+cy+'" x2="'+f(t[0])+'" y2="'+f(t[1])+'" pointer-events="none"/><circle class="radar-end-hit" cx="'+f(t[0])+'" cy="'+f(t[1])+'" r="13" fill="transparent" pointer-events="all"/><circle class="radar-end" cx="'+f(t[0])+'" cy="'+f(t[1])+'" r="3" pointer-events="none"/><text class="radar-index" x="'+f(L[0])+'" y="'+f(ly-15)+'" text-anchor="'+anchor+'" dominant-baseline="central">'+dimIndex(i)+'</text><text class="radar-name" data-dimension-name="true" x="'+f(L[0])+'" y="'+f(ly+8)+'" text-anchor="'+anchor+'" dominant-baseline="central">'+name+'</text></g>';
  });
  // data: per-dimension gradient sector, coloured outer edge, node
  out+='<g class="radar-data">';
