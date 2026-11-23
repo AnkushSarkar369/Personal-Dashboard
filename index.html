@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b0d12"><title>Habit Radar</title>
-<link rel="stylesheet" href="styles.css?v=20261123-04">
+<link rel="stylesheet" href="styles.css?v=20261123-05">
 </head>
 <body>
 <svg class="icon-library" aria-hidden="true" focusable="false">
@@ -92,12 +92,12 @@
     <article class="panel settings-card"><div class="eyebrow">Scoring</div><h3>Minimum Viable Action</h3><div class="setting-row"><label for="mvaRange">Global MVA Multiplier</label><strong id="mvaValue">0.25×</strong></div><input type="range" id="mvaRange" min=".1" max=".5" step=".05" value=".25"><div class="range-label"><span>0.10×</span><span>0.50×</span></div><p class="muted">Applies to future activity only. Existing records keep their original multiplier.</p><div class="setting-row"><label for="defaultBenchmark">Default Benchmark</label><input id="defaultBenchmark" type="number" min="1" step="100" value="1000"></div></article>
     <article class="panel settings-card"><div class="eyebrow">Portable Storage</div><h3>Data Location</h3><p class="muted">The app saves in browser storage automatically. On supported desktop browsers, connect a folder to also write a JSON file there.</p><button class="secondary-button" id="chooseFolder">Choose Data Folder</button><div id="storageDetail" class="storage-detail">No external folder connected.</div><button class="secondary-button" id="saveNow">Save Now / Export</button></article>
     <article class="panel settings-card"><div class="eyebrow">Backup & Restore</div><h3>Your Data, Portable</h3><p class="muted">Export or restore dimensions, habits, active states and historical records.</p><div class="button-row"><button class="secondary-button" id="exportData">Export JSON</button><label class="secondary-button file-button">Import JSON<input type="file" id="importData" accept=".json,application/json" hidden></label></div></article>
-    <article class="panel settings-card danger-card"><div class="eyebrow">Reset</div><h3>Reset Sample / Personal Data</h3><p class="muted">This clears the current setup and restores the original sample workspace.</p><button class="danger-button" id="resetData">Restore Sample Data</button></article>
+    <article class="panel settings-card danger-card"><div class="eyebrow">Reset</div><h3>Reset Sample / Personal Data</h3><p class="muted">This clears the current setup and restores the original sample workspace.</p><div class="button-row reset-actions"><button class="danger-button" id="resetData">Restore Sample Data</button><button class="danger-button reset-all-button" id="resetAllData">Reset All Data</button></div></article>
     </div>
   </div>
 </section>
 </main></div>
 <div class="library-modal" id="libraryModal" hidden></div>
 <div class="toast" id="toast" role="status"></div>
-<script src="app.js?v=20261123-04"></script>
+<script src="app.js?v=20261123-05"></script>
 </body></html>
