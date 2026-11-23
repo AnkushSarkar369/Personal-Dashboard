@@ -1417,7 +1417,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 /* Archive stars, temporary editor and tooltip. */
  .archive-row-star{
  width:28px;min-width:28px;min-height:32px;flex:none;display:grid;place-items:center;
- padding:0;border:0;border-radius:6px;background:transparent;color:#7f8b9e;
+ padding:0;border:0;background:transparent;color:#7f8b9e;
  font:17px/1 var(--font-sans);opacity:1;cursor:pointer;align-self:stretch;height:auto;margin:0 0 -1px;border-radius:6px 6px 0 0;
  transition:color .14s ease,background-color .14s ease;
 }
