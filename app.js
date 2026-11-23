@@ -394,8 +394,8 @@ function renderLibrary(){
      '<div class="dimension-plate-glyph">'+dimensionGlyph(di,dims.length,color)+'</div>'+
     '</div>'+
    '</header>'+
-   '<section class="dimension-habits" aria-label="Active habits for '+esc(d.name)+'"><div class="library-habit-list">'+rows(active,false)+'</div></section>'+
-   '<aside class="dimension-actions"><button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(dimensionLabel(d.name))+'" title="Add Habit">+</button>'+inactiveDisclosure+'</aside>'+
+   '<section class="dimension-habits" aria-label="Habits for '+esc(d.name)+'"><div class="library-habit-list">'+rows(active,false)+'</div>'+inactiveDisclosure+'</section>'+
+   '<aside class="dimension-actions"><button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(dimensionLabel(d.name))+'" title="Add Habit">+</button></aside>'+
   '</article>';
  }).join("")+'<button class="add-dimension-card" data-add-dimension><span class="add-dimension-plus">＋</span><strong>Add Dimension</strong><small>Create another area of life</small></button>';
  host.querySelectorAll("details[data-inactive-dimension]").forEach(details=>{
