@@ -81,8 +81,14 @@ function normalize(x){
   defaultBenchmark:Number.isFinite(benchmark)?Math.max(1,benchmark):base.settings.defaultBenchmark
  },dimensions,pools:Array.isArray(x.pools)?x.pools:[],habits,records:isPlainObject(x.records)?x.records:{}};
 }
-let data=sampleData();
-try{const raw=localStorage.getItem("habit-radar-state");if(raw)data=normalize(validateBackupPayload(JSON.parse(raw)));}catch(e){console.warn("Saved data could not be loaded; using the sample workspace.",e)}
+let data;
+try{
+ const raw=localStorage.getItem("habit-radar-state");
+ data=raw?normalize(validateBackupPayload(JSON.parse(raw))):sampleData();
+}catch(e){
+ console.warn("Saved data could not be loaded; using the sample workspace.",e);
+ data=sampleData();
+}
 function D(id){return data.dimensions.find(x=>x.id===id)}function P(id){return data.pools.find(x=>x.id===id)}function H(id){return data.habits.find(x=>x.id===id)}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function titleCase(s){
