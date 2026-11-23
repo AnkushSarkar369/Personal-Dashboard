@@ -63,7 +63,7 @@ function dimensionLabel(name){return String(name??"").trim().toUpperCase();}
 function applyTitleCase(){
  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),nodes=[];
  while(walker.nextNode())if(walker.currentNode.nodeValue.trim())nodes.push(walker.currentNode);
- nodes.forEach(node=>{if(!node.parentElement.closest("script,style,[data-dimension-name]"))node.nodeValue=titleCase(node.nodeValue)});
+ nodes.forEach(node=>{if(!node.parentElement.closest("script,style,[data-dimension-name],[data-preserve-case]"))node.nodeValue=titleCase(node.nodeValue)});
  document.querySelectorAll("[title],[aria-label],[placeholder]").forEach(el=>{
   if(el.matches("[data-open-dimension],[data-edit-dimension],[data-modal-points]"))return;
   ["title","aria-label","placeholder"].forEach(attr=>{if(el.hasAttribute(attr))el.setAttribute(attr,titleCase(el.getAttribute(attr)))});
