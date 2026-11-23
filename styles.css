@@ -1231,3 +1231,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 @media(max-width:700px){
  #dimensionCards .dimension-actions{grid-column:1;grid-template-columns:repeat(2,30px);grid-template-rows:repeat(2,30px);justify-content:end;min-height:0;padding:8px 12px}
 }
+
+/* Statistics: align the Weekly Distribution footer with the Habit Leaders content. */
+@media(min-width:761px){
+ .quadrant-weekday .weekly-chart{
+  height:276px;display:flex;flex-direction:column;justify-content:space-between;
+ }
+ .quadrant-weekday .weekly-bars{flex:0 0 204px}
+}
