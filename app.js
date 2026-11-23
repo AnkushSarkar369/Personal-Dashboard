@@ -154,7 +154,7 @@ function createRadarAtmosphere(canvas){
   particles=Array.from({length:count},()=>({
    x:random(0,width),y:random(0,height),
    vx:random(-.11,.11),vy:random(-.085,.085),
-   radius:random(.38,1.05),alpha:random(.12,.34),
+   radius:random(.38,1.05),alpha:random(.16,.4),
    phase:random(0,Math.PI*2),speed:random(.00035,.00085),
    rgb:palette[Math.floor(Math.random()*palette.length)],
    glow:Math.random()<.15
@@ -184,7 +184,7 @@ function createRadarAtmosphere(canvas){
   }
   particles.forEach(p=>{
    const wave=.5+.5*Math.sin((motionQuery?.matches?0:now)*p.speed+p.phase);
-   const alpha=p.alpha*(.38+wave*.62);
+   const alpha=p.alpha*(.45+wave*.55);
    if(p.glow){
     const spread=p.radius*7,glow=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,spread);
     glow.addColorStop(0,"rgba("+p.rgb+","+(alpha*.22)+")");
