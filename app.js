@@ -91,7 +91,6 @@ function queueReconciliationItem(date,id){
  if(!row.habitIds.includes(id))row.habitIds.push(id);
  pending.sort((a,b)=>a.date.localeCompare(b.date));
 }
-function persistWithoutRender(){persist(false)}
 
 let period="1m",view="overview",selectedDate=today(),editingSpecialDate=null,selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,lastTouchedHabitId=null,draggedDimensionId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
 function sampleStructure(){
@@ -823,7 +822,7 @@ function prepareReconciliationAtLaunch(){
  }
  settings.lastReconciledThrough=yesterday;
  settings.pendingReconciliation=Array.from(pending.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([day,ids])=>({date:day,habitIds:Array.from(ids)}));
- persistWithoutRender();
+ persist(false);
  if(settings.pendingReconciliation.length)renderReconciliationModal();
 }
 function renderReconciliationModal(){
@@ -868,22 +867,21 @@ function resetAllData(){
  const start=today();data={version:3,visualVersion:2,settings:{mva:.25,defaultBenchmark:1000,trackingStartDate:start,lastReconciledThrough:shiftDateKey(start,-1),pendingReconciliation:[]},dimensions:[],pools:[],habits:[],records:{},eligibility:{dimensions:{},habits:{}}};
  selectedDate=start;selectedStatsHabit=null;statsSpotlightHabit=null;save();toast("All Workspace Data Cleared.");
 }
-document.addEventListener("pointerover",e=>{
- const star=e.target instanceof Element?e.target.closest(".archive-row-star.is-special"):null;
+function archiveStarFromTarget(target){
+ return target instanceof Element?target.closest(".archive-row-star.is-special"):null;
+}
+function handleArchiveStarEnter(event){
+ const star=archiveStarFromTarget(event.target);
  if(star)showArchiveNoteTooltip(star);
-});
-document.addEventListener("pointerout",e=>{
- const star=e.target instanceof Element?e.target.closest(".archive-row-star.is-special"):null;
- if(star&&!star.contains(e.relatedTarget))hideArchiveNoteTooltip();
-});
-document.addEventListener("focusin",e=>{
- const star=e.target instanceof Element?e.target.closest(".archive-row-star.is-special"):null;
- if(star)showArchiveNoteTooltip(star);
-});
-document.addEventListener("focusout",e=>{
- const star=e.target instanceof Element?e.target.closest(".archive-row-star.is-special"):null;
- if(star)hideArchiveNoteTooltip();
-});
+}
+function handleArchiveStarLeave(event){
+ const star=archiveStarFromTarget(event.target);
+ if(star&&!star.contains(event.relatedTarget))hideArchiveNoteTooltip();
+}
+document.addEventListener("pointerover",handleArchiveStarEnter);
+document.addEventListener("focusin",handleArchiveStarEnter);
+document.addEventListener("pointerout",handleArchiveStarLeave);
+document.addEventListener("focusout",handleArchiveStarLeave);
 window.addEventListener("scroll",hideArchiveNoteTooltip,true);
 window.addEventListener("resize",hideArchiveNoteTooltip);
 document.addEventListener("click",e=>{
