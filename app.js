@@ -439,7 +439,7 @@ function renderTracker(){
  const resolved=resolvedCount(rec,tracked);
  $("#liveDate").innerHTML='<span class="date-weekday">'+(isToday?"":'<span class="date-context">ARCHIVE / </span>')+esc(dateParts[0])+'</span><span class="date-rest">'+esc(dateParts.slice(1).join(", "))+'</span>';
  $("#liveClock").innerHTML=isToday?clockMarkup(now):'<button class="archive-back-button" data-back-stats>← Back To Statistics</button>';
- $("#todayProgressLabel").textContent=resolved+" / "+tracked.length+" resolved";
+ $("#todayProgressLabel").textContent=resolved+" / "+tracked.length+" recorded";
  $("#todayProgressFill").style.transform="scaleX("+(tracked.length?resolved/tracked.length:0)+")";
  $("#trackerEmpty").hidden=tracked.length+historical.length>0;
  $("#trackerEmpty").textContent="No active habits in active dimensions. Configure them in the Habit Library.";
@@ -594,7 +594,7 @@ function deleteDimension(id){
  if(!confirm(message))return;
  const exclusiveIds=new Set(exclusive.map(h=>h.id));
  data.habits=data.habits.filter(h=>!exclusiveIds.has(h.id));
- data.habits.forEach(h=>{h.points=(h.points||[]).filter(point=>point.dimensionId!==id)});
+ data.habits.forEach(h=>{h.points=(h.points||[]).filter(point=>point.dimensionId!==id);if(h.points.length)refreshHabitEligibility(h,today())});
  data.dimensions=data.dimensions.filter(item=>item.id!==id);
  if(exclusiveIds.has(selectedStatsHabit))selectedStatsHabit=null;
  if(exclusiveIds.has(statsSpotlightHabit))statsSpotlightHabit=null;
@@ -873,7 +873,11 @@ $("#libraryModal").addEventListener("change",e=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#libraryModal").hidden)closeHabitModal()});
 $("#mvaRange").oninput=e=>{$("#mvaValue").textContent=Number(e.target.value).toFixed(2)+"×"};
-$("#mvaRange").onchange=e=>{data.settings.mva=Number(e.target.value);save();toast("MVA Multiplier Updated For Future Activity.")};
+$("#mvaRange").onchange=e=>{
+ data.settings.mva=Number(e.target.value);
+ data.habits.filter(h=>h.active&&!h.archived).forEach(h=>refreshHabitEligibility(h,today()));
+ save();toast("MVA Multiplier Updated For Future Activity.");
+};
 $("#defaultBenchmark").onchange=e=>{data.settings.defaultBenchmark=Math.max(1,Number(e.target.value)||1000);save()};
 $("#exportData").onclick=exportData;
 $("#importData").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value=""};
