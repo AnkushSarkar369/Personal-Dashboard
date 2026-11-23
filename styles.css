@@ -990,3 +990,37 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 @media(max-width:760px){
  .dimension-name-button{font-size:14px;letter-spacing:.06em;font-weight:760}
 }
+
+
+/* Statistics layout correction: archive actions stay inside the date row. */
+.daily-archive{display:flex;flex-direction:column;gap:0;min-height:0}
+.archive-row{
+ grid-template-columns:minmax(0,1fr) auto auto 12px;
+ align-items:center;min-height:42px;padding:8px 4px;
+}
+.archive-row:hover{padding-left:9px;padding-right:4px}
+.archive-open{
+ display:block;width:12px;justify-self:end;text-align:center;
+ line-height:1;opacity:0;pointer-events:none;
+}
+.archive-row:hover .archive-open,.archive-row:focus-visible .archive-open{opacity:1}
+
+/* Leaders use three equal vertical bands, independent of tie count. */
+.habit-leaders{
+ display:grid;grid-template-rows:repeat(3,minmax(0,1fr));
+ align-content:stretch;align-items:stretch;gap:0;
+ height:calc(100% - 53px);min-height:0;margin-top:10px;
+}
+.leader-category{
+ display:flex;flex-direction:column;justify-content:center;min-height:0;
+ padding:8px 0;border-bottom:1px solid rgba(66,77,95,.35);
+}
+.leader-category:last-child{border-bottom:0;padding-bottom:8px}
+.leader-category-heading{margin-bottom:5px}
+.leader-row{min-height:25px;padding:4px 2px}
+.leader-more{padding:3px 2px 0}
+.leader-empty{padding:7px 2px}
+@media(max-width:760px){
+ .habit-leaders{height:calc(100% - 53px)}
+ .archive-row{grid-template-columns:minmax(0,1fr) auto auto 12px;gap:8px}
+}
