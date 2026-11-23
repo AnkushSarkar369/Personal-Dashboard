@@ -91,20 +91,6 @@
  transition:color .25s ease;
 }
 .daily-habit .status-dots{margin-left:auto;flex:none}
-.daily-grip{
- width:15px;
- flex:none;
- color:#7f8b9d;
- font-size:16px;
- line-height:1;
- opacity:.34;
- cursor:grab;
- user-select:none;
- text-align:center;
- transition:opacity .18s ease,color .18s ease;
-}
-.daily-grip:active{cursor:grabbing}
-.daily-habit:hover .daily-grip{opacity:.8;color:#c1b2f1}
 .daily-habit.is-completed .daily-habit-name{color:#aab6b0}
 .daily-habit.is-completed .daily-habit-name:after{
  content:"";
@@ -121,8 +107,6 @@
  pointer-events:none;
 }
 @keyframes habit-cut{to{transform:scaleX(1)}}
-.daily-habit.dragging{opacity:.34}
-.daily-habit.drop-target{border-top:1px solid rgba(180,154,255,.58);background:rgba(180,154,255,.045)}
 .daily-habit:focus-visible{outline:1px solid var(--accent);outline-offset:2px}
 .habit-stats-screen{max-width:1000px;margin:0 auto;padding:8px 0 60px}
 .habit-stats-back{margin:8px 0 18px}
@@ -205,7 +189,6 @@
 }
 .daily-habit .status-dots{cursor:default}
 .daily-habit .status-dots button{cursor:pointer}
-.daily-habit.dragging{will-change:opacity}
 @media(hover:none),(pointer:coarse){
  .daily-habit{transition:background-color 180ms ease,border-color 180ms ease}
  .status-dots{min-width:144px;min-height:48px;padding:12px 16px}
@@ -1155,3 +1138,74 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
  .library-modal{align-items:flex-start;overflow-y:auto;padding:10px}
  .library-dialog{max-height:calc(100dvh - 20px)}
 }
+
+
+/* Daily Tracker: dimension-first layout, clear status language and a calmer working surface. */
+.daily-screen{max-width:1040px;padding:24px 0 70px}
+.daily-header{padding:16px 8px 23px;margin-bottom:16px}
+.daily-progress{margin:0 0 11px;padding:14px 17px 15px;border:1px solid rgba(103,119,146,.22);border-radius:12px;background:linear-gradient(115deg,rgba(24,31,44,.72),rgba(15,20,29,.86));box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 8px 24px rgba(0,0,0,.10)}
+.daily-progress-meta{font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.daily-progress-meta .num{color:#d5c9f7;font-size:11px;font-variant-numeric:tabular-nums}
+.daily-progress-track{height:4px;border-radius:8px;background:rgba(113,127,151,.2)}
+.daily-progress-track i{border-radius:8px;background:linear-gradient(90deg,#8c78d7,#4fd4cf);box-shadow:0 0 12px rgba(119,169,219,.28)}
+.daily-status-guide{display:flex;justify-content:flex-end;gap:16px;flex-wrap:wrap;margin:0 5px 12px;color:#8995a8;font-size:9px;letter-spacing:.025em}
+.daily-status-guide span{display:inline-flex;align-items:center;gap:6px}
+.status-guide-dot{width:7px;height:7px;display:inline-block;border-radius:50%;box-shadow:0 0 7px currentColor}
+.status-guide-dot.completed{background:#4ade80;color:#4ade80}
+.status-guide-dot.mva{background:#b49aff;color:#b49aff}
+.status-guide-dot.missed{background:#f16e79;color:#f16e79}
+.tracker-list{display:grid;gap:15px}
+.daily-dimension-group{--dimension-accent:#8b9bb4;overflow:hidden;min-width:0;border:1px solid color-mix(in srgb,var(--dimension-accent) 23%,rgba(65,76,96,.45));border-left:2px solid var(--dimension-accent);border-radius:13px;background:radial-gradient(ellipse at 0 0,color-mix(in srgb,var(--dimension-accent) 7%,transparent),transparent 62%),linear-gradient(130deg,rgba(20,26,37,.94),rgba(14,19,27,.96));box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 7px 23px rgba(0,0,0,.11)}
+.daily-dimension-heading{display:flex;align-items:center;gap:13px;min-height:66px;padding:12px 17px;border-bottom:1px solid rgba(96,109,132,.2);background:linear-gradient(90deg,color-mix(in srgb,var(--dimension-accent) 8%,transparent),transparent 75%)}
+.daily-dimension-index{width:33px;flex:none;color:var(--dimension-accent);font-family:var(--font-serif);font-size:25px;line-height:1;font-variant-numeric:lining-nums}
+.daily-dimension-copy{display:grid;gap:4px;min-width:0}
+.daily-dimension-copy h3{margin:0;color:#e9edf5;font-family:var(--font-serif);font-size:19px;font-weight:450;letter-spacing:-.02em;line-height:1.15}
+.daily-dimension-copy>span{color:#7f8da2;font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase}
+.daily-dimension-marker{width:7px;height:7px;margin-left:auto;flex:none;border-radius:50%;background:var(--dimension-accent);box-shadow:0 0 12px color-mix(in srgb,var(--dimension-accent) 65%,transparent)}
+.daily-dimension-habits{display:grid;padding:3px 13px 5px}
+.daily-dimension-habits .daily-habit{display:flex;align-items:center;gap:16px;min-width:0;min-height:58px;padding:7px 9px;border:0;border-bottom:1px solid rgba(91,105,127,.17);border-radius:7px;background:transparent;box-shadow:none;transition:background .18s ease,border-color .18s ease}
+.daily-dimension-habits .daily-habit:last-child{border-bottom:0}
+.daily-dimension-habits .daily-habit:hover:not(.dragging){transform:none;border-color:rgba(120,137,165,.2);background:color-mix(in srgb,var(--dimension-accent) 5%,rgba(255,255,255,.015));box-shadow:none}
+.daily-dimension-habits .daily-habit-name{display:flex;align-items:center;gap:9px;flex:1 1 auto;width:auto;max-width:none;min-width:0;color:#e4e9f2;font-size:13px;font-weight:510;line-height:1.4}
+.daily-shared-label{flex:none;padding:2px 5px;border:1px solid rgba(34,211,238,.23);border-radius:4px;color:#69cbd8;font-family:var(--font-mono);font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.daily-dimension-habits .daily-habit .status-dots{flex:none;min-width:132px;min-height:40px;margin:0 -5px 0 0;padding:6px 10px}
+.daily-dimension-habits .daily-habit.is-completed{background:rgba(74,222,128,.018)}
+.daily-dimension-habits .daily-habit.is-mva{background:rgba(180,154,255,.018)}
+.daily-dimension-habits .daily-habit.is-missed{background:rgba(242,139,150,.015)}
+.daily-history-group{border-color:rgba(100,112,132,.22);border-left-color:#637187}
+.daily-history-group .daily-dimension-heading{background:rgba(122,137,160,.035)}
+.daily-history-group .daily-dimension-index{color:#718198}
+.daily-history-group .daily-dimension-marker{background:#718198;box-shadow:none}
+.daily-history-group .daily-habit-name{color:#9aa5b5}
+.daily-habit.is-historical{opacity:.72;cursor:default}
+.daily-habit:focus-visible{outline:1px solid var(--dimension-accent);outline-offset:-2px}
+#dimensionCards .dimension-card{grid-template-columns:minmax(205px,.86fr) minmax(0,1.55fr) 118px}
+#dimensionCards .dimension-actions{display:grid;grid-template-columns:repeat(3,28px);grid-auto-rows:28px;align-content:center;justify-content:center;gap:5px;min-width:0;padding:9px 6px;border-left:1px solid rgba(105,119,143,.2)}
+#dimensionCards .dimension-add-habit{width:28px;height:28px}
+#dimensionCards .dimension-control{display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid transparent;border-radius:7px;background:transparent;color:#8390a3;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease}
+#dimensionCards .dimension-control svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#dimensionCards .dimension-control:hover:not(:disabled){border-color:rgba(146,163,190,.25);background:rgba(255,255,255,.045);color:#e5ebf5}
+#dimensionCards .dimension-control.dimension-toggle{color:#75c8a1}
+#dimensionCards .dimension-control.dimension-toggle:hover{border-color:rgba(74,222,128,.24);background:rgba(74,222,128,.07);color:#7ef0a6}
+#dimensionCards .dimension-control.dimension-delete{color:#8b6872}
+#dimensionCards .dimension-control.dimension-delete:hover{border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.09);color:#fb8585}
+#dimensionCards .dimension-control:disabled{opacity:.2;cursor:default}
+#dimensionCards .dimension-card.is-dimension-inactive{border-style:dashed;background:linear-gradient(110deg,rgba(20,25,35,.68),rgba(14,18,26,.82))}
+#dimensionCards .dimension-card.is-dimension-inactive .dimension-name-button .plate-name{color:#a0aaba}
+#dimensionCards .dimension-card.is-dimension-inactive .dimension-plate-glyph{opacity:.42}
+#dimensionCards .dimension-state{color:#d0a66d;font-size:8px;letter-spacing:.08em;text-transform:uppercase}
+@media(max-width:1050px){#dimensionCards .dimension-card{grid-template-columns:minmax(190px,.72fr) minmax(0,1.5fr) 118px}#dimensionCards .dimension-actions{grid-column:auto;min-height:0;padding:8px 5px;border-top:0}}
+@media(max-width:700px){
+ .daily-screen{max-width:100%;padding:14px 0 38px}
+ .daily-header{padding:12px 5px 18px;margin-bottom:13px}
+ .daily-status-guide{justify-content:center;gap:12px;margin-bottom:10px}
+ .daily-dimension-heading{min-height:60px;padding:10px 13px}
+ .daily-dimension-copy h3{font-size:18px}
+ .daily-dimension-habits{padding:3px 8px 5px}
+ .daily-dimension-habits .daily-habit{min-height:58px;padding:7px 5px;gap:8px}
+ .daily-dimension-habits .daily-habit-name{font-size:12px}
+ .daily-dimension-habits .daily-habit .status-dots{min-width:119px;gap:10px;margin-right:-4px;padding:5px 7px}
+ #dimensionCards .dimension-card{grid-template-columns:minmax(0,1fr)}
+ #dimensionCards .dimension-actions{grid-column:1;display:grid;grid-template-columns:repeat(5,30px);grid-auto-rows:30px;justify-content:end;min-height:42px;padding:6px 12px;border-top:1px solid rgba(105,119,143,.18);border-left:0}
+}
+@media(prefers-reduced-motion:reduce){.daily-dimension-habits .daily-habit,.daily-progress-track i{transition:none}}
