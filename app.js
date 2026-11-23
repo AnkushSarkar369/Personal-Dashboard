@@ -22,12 +22,12 @@ function sampleStructure(){
  return {dims,pools,habits,settings:{mva:.25,defaultBenchmark:1000}};
 }
 function sampleData(){
- const {dims,pools,habits}=sampleStructure();
+ const {dims,pools,habits,settings}=sampleStructure();
  const records={};const todayDate=new Date(today()+"T12:00:00"),cycle=["completed","completed","mva","completed","missed","completed","mva","completed"];
  for(let offset=89;offset>=0;offset--){const dt=new Date(todayDate);dt.setDate(dt.getDate()-offset);const date=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0"),items={};
  habits.forEach((h,index)=>{const seed=(offset*7+index*11+index*index)%19;if(seed===0||seed===7||seed===14)return;const status=cycle[(offset*3+index*5+Math.floor(offset/6))%cycle.length],p=pools.find(x=>x.id===h.poolId);items[h.id]={status,snapshot:{habitId:h.id,name:h.name,poolName:p?.name||"Habit Library",points:h.points.map(x=>({dimensionId:x.dimensionId,dimensionName:dims.find(d=>d.id===x.dimensionId)?.name||"Dimension",points:x.points})),mva:.25},updatedAt:new Date(dt.getTime()+index*60000).toISOString()};});
  if(Object.keys(items).length)records[date]={date,items};}
- return {version:2,visualVersion:2,settings:{...sampleStructure().settings},dimensions:dims,pools,habits,records};
+ return {version:2,visualVersion:2,settings,dimensions:dims,pools,habits,records};
 }
 function safeColor(value,fallback){
  const v=String(value||"").trim();
