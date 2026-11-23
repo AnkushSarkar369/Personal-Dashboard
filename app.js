@@ -398,8 +398,8 @@ function renderLibrary(){
      '<span class="library-habit-name-wrap"><strong class="library-habit-name" data-preserve-case>'+esc(h.name)+'</strong>'+(shared?'<small class="shared-label">Shared</small>':'')+'</span>'+
      '<span class="library-habit-points">'+fmt(allocatedPoints(h))+' <small>pts</small></span>'+
     '</button>'+
-    '<button class="library-lock '+(locked?'is-locked':'is-unlocked')+'" data-toggle-habit="'+esc(h.id)+'" aria-label="'+(locked?'Activate ':'Deactivate ')+esc(h.name)+'" title="'+(locked?'Activate Habit':'Deactivate Habit')+'">'+lockIcon(locked)+'</button>'+
-    '<button class="library-lock library-delete" data-delete-habit="'+esc(h.id)+'" aria-label="Delete '+esc(h.name)+'" title="Delete Habit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9 7V4.5h6V7m-8.5 0 1 13h9l1-13M10 10.5v6m4-6v6"></path></svg></button>'+
+    '<button class="library-lock '+(locked?'is-locked':'is-unlocked')+'" data-preserve-case data-toggle-habit="'+esc(h.id)+'" aria-label="'+(locked?'Activate ':'Deactivate ')+esc(h.name)+'" title="'+(locked?'Activate Habit':'Deactivate Habit')+'">'+lockIcon(locked)+'</button>'+
+    '<button class="library-lock library-delete" data-preserve-case data-delete-habit="'+esc(h.id)+'" aria-label="Delete '+esc(h.name)+'" title="Delete Habit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9 7V4.5h6V7m-8.5 0 1 13h9l1-13M10 10.5v6m4-6v6"></path></svg></button>'+
    '</article>';
   }).join(""):'<div class="library-group-empty">'+(isInactive?'No inactive habits.':'No active habits yet.')+'</div>';
   const inactiveDisclosure=inactive.length
@@ -410,7 +410,7 @@ function renderLibrary(){
    :'';
   const dimensionInactive=d.active===false;
   const dimensionActions=
-   '<button class="dimension-add-habit" data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(d.name)+'" title="Add Habit">+</button>'+
+   '<button class="dimension-add-habit" data-preserve-case data-add-habit-dimension="'+esc(d.id)+'" aria-label="Add habit to '+esc(d.name)+'" title="Add Habit">+</button>'+
    '<button class="dimension-control dimension-toggle" data-toggle-dimension="'+esc(d.id)+'" data-preserve-case aria-label="'+(dimensionInactive?'Activate ':'Deactivate ')+esc(d.name)+'" title="'+(dimensionInactive?'Activate Dimension':'Deactivate Dimension')+'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9M6.2 6.2a8 8 0 1 0 11.6 0"></path></svg></button>'+
    '<button class="dimension-control" data-move-dimension="'+esc(d.id)+'" data-direction="up" data-preserve-case aria-label="Move '+esc(d.name)+' up" title="Move Up" '+(di===0?'disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 14 6-6 6 6"></path></svg></button>'+
    '<button class="dimension-control" data-move-dimension="'+esc(d.id)+'" data-direction="down" data-preserve-case aria-label="Move '+esc(d.name)+' down" title="Move Down" '+(di===dims.length-1?'disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6 6 6-6"></path></svg></button>'+
