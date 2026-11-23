@@ -941,3 +941,35 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 .dimension-title-wrap .dimension-total{display:none}
 .dimension-card-header{padding-top:17px;padding-bottom:15px}
 @media(max-width:760px){.library-intro{margin-bottom:24px;padding:8px 0 19px}.library-title-row{align-items:flex-start;flex-direction:column;gap:12px;margin-bottom:14px}.library-title-lockup h2{font-size:38px}.library-quote{margin-top:10px;line-height:1.7}}
+
+
+/* Habit Library: make the collection itself the masthead and tighten card top inset. */
+.library-intro{
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ gap:12px;margin:0 auto 24px;padding:12px 0 20px;text-align:center;
+}
+.library-title-row{justify-content:center;align-items:center;margin:0}
+.library-counts{
+ justify-content:center;gap:12px;padding:0;border:0;border-radius:0;
+ background:none;color:#aab4c4;font-size:11px;letter-spacing:.12em;
+}
+.library-counts strong{
+ color:#f0edf8;font-family:Georgia,"Times New Roman",serif;
+ font-size:clamp(34px,4vw,46px);font-weight:400;letter-spacing:-.045em;
+}
+.library-counts span{padding:0 3px;color:#758194;font-size:18px}
+.library-quote{
+ max-width:none;margin:0;color:#aeb8c8;font-size:14px;
+ font-style:italic;line-height:1.5;text-align:center;letter-spacing:.01em;
+}
+.dimension-card{padding-top:8px}
+.dimension-card-header{padding-top:4px}
+@media(max-width:760px){
+ .library-intro{gap:10px;margin-bottom:18px;padding:8px 0 15px}
+ .library-counts{gap:8px;font-size:9px}
+ .library-counts strong{font-size:34px}
+ .library-counts span{font-size:15px}
+ .library-quote{font-size:12px}
+ .dimension-card{padding-top:7px}
+ .dimension-card-header{padding-top:3px}
+}
