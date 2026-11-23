@@ -13,10 +13,11 @@ The app starts with an editable sample workspace. Browser storage is used automa
 - A visual Overview with a dimension-coloured radar chart.
 - Editable dimensions and a Habit Library with compact dimension cards.
 - Habit creation and editing, including multi-dimension point allocations.
-- Completed, Minimum Viable Action (MVA), and Not Completed daily states.
+- Completed, Minimum Viable Action (MVA), Not Completed, and an implicit Unrecorded state. Unrecorded habits are neutral and do not count as missed.
 - A configurable MVA multiplier; historical records preserve the multiplier and point values used on that day.
-- Daily tracking with habit reordering and historical record review.
-- 1M, 3M and All Time statistics, including weekday distribution, habit spotlight, leaders and daily archive.
+- Daily tracking by dimension and historical record review.
+- A configurable Tracking Start Date, Special Days with notes, and launch-time reconciliation for forgotten entries.
+- 1M, 3M and All Time statistics that exclude pre-start dates, Special Days and unrecorded outcomes; includes weekday distribution, habit spotlight, leaders and daily archive.
 - Activate or deactivate habits without deleting their historical activity.
 - JSON backup and restore, sample-workspace restore, and full data reset.
 
