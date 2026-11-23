@@ -973,3 +973,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
  .dimension-card{padding-top:7px}
  .dimension-card-header{padding-top:3px}
 }
+
+
+/* Dimension names: use a sturdier, deliberate display treatment. */
+.dimension-name-button{
+ color:#f1f3f8;
+ font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+ font-size:15px;font-weight:780;letter-spacing:.075em;line-height:1.25;
+ text-transform:uppercase;
+ text-shadow:0 1px 0 rgba(0,0,0,.25);
+}
+.dimension-name-button span{
+ color:inherit;font:inherit;letter-spacing:inherit;
+}
+.dimension-name-button:hover{color:#fff}
+@media(max-width:760px){
+ .dimension-name-button{font-size:14px;letter-spacing:.06em;font-weight:760}
+}
