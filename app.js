@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-const DIMENSION_COLORS=["#4ade80","#60a5fa","#fbbf24","#fb923c","#f87171","#a3e635","#94a3b8"],SPECIAL_COLOR="#22d3ee",COLORS=DIMENSION_COLORS;
+const DIMENSION_COLORS=["#4ade80","#60a5fa","#fbbf24","#fb923c","#f87171","#a3e635","#94a3b8"],SPECIAL_COLOR="#22d3ee",COLORS=DIMENSION_COLORS,OUTCOME_STATUSES=new Set(["completed","mva","missed"]);
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const uid=()=> "hr-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
 const IST_DATE_PARTS_FORMATTER=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"});
@@ -83,7 +83,7 @@ function snapshotForHabitDate(h,date){
 function ensureDateRecord(date){if(!data.records[date])data.records[date]={date,items:{}};if(!isPlainObject(data.records[date].items))data.records[date].items={};return data.records[date]}
 function cleanupDateRecord(date){
  const r=data.records[date];if(!r)return;
- const hasItems=Object.values(r.items||{}).some(item=>["completed","mva","missed"].includes(item?.status));
+ const hasItems=Object.values(r.items||{}).some(item=>OUTCOME_STATUSES.has(item?.status));
  const hasAck=Array.isArray(r.acknowledgedUnrecordedIds)&&r.acknowledgedUnrecordedIds.length>0;
  if(!hasItems&&!r.specialDay&&!String(r.specialNote||"").trim()&&!hasAck)delete data.records[date];
 }
@@ -153,7 +153,7 @@ function validateBackupPayload(value){
   if(record.specialNote!==undefined&&typeof record.specialNote!=="string")throw new Error("A special-day note is malformed.");
   if(record.acknowledgedUnrecordedIds!==undefined&&(!Array.isArray(record.acknowledgedUnrecordedIds)||record.acknowledgedUnrecordedIds.some(id=>typeof id!=="string")))throw new Error("Reconciliation acknowledgements are malformed.");
   Object.values(record.items).forEach(item=>{
-   if(!isPlainObject(item)||!["completed","mva","missed"].includes(item.status)||!isPlainObject(item.snapshot)||!Array.isArray(item.snapshot.points))throw new Error("A historical habit entry is malformed.");
+   if(!isPlainObject(item)||!OUTCOME_STATUSES.has(item.status)||!isPlainObject(item.snapshot)||!Array.isArray(item.snapshot.points))throw new Error("A historical habit entry is malformed.");
    item.snapshot.points.forEach(point=>{if(!isPlainObject(point)||typeof point.dimensionId!=="string"||!Number.isFinite(Number(point.points)))throw new Error("A historical point allocation is malformed.")});
   });
  });
@@ -219,7 +219,7 @@ function ordinalDay(day){const n=Number(day),lastTwo=n%100;if(lastTwo>=11&&lastT
 function formatOrdinalDate(date){const parts=Object.fromEntries(ORDINAL_DATE_FORMATTER.formatToParts(date).map(x=>[x.type,x.value]));return parts.weekday+", "+parts.month+" "+ordinalDay(parts.day)+", "+parts.year}
 function formatIstTime(date){return IST_TIME_FORMATTER.format(date).replace(/\b(am|pm)\b/i,x=>x.toUpperCase())+" IST"}
 function clockMarkup(date){const time=formatIstTime(date).replace(/\sIST$/,"");return '<span class="clock-digits">'+esc(time)+'</span><span class="clock-zone">IST</span>'}
-function resolvedCount(record,habits){return habits.reduce((n,h)=>n+(["completed","mva","missed"].includes(record?.items?.[h.id]?.status)?1:0),0)}
+function resolvedCount(record,habits){return habits.reduce((n,h)=>n+(OUTCOME_STATUSES.has(record?.items?.[h.id]?.status)?1:0),0)}
 function fmt(n){return (Math.round((Number(n)||0)*100)/100).toLocaleString(undefined,{maximumFractionDigits:2})}
 function toast(s){const e=$("#toast");e.textContent=titleCase(s);e.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>e.classList.remove("show"),2300)}
 function persist(renderAfter){try{localStorage.setItem("habit-radar-state",JSON.stringify(data));$("#storageDot").classList.add("saved");$("#storageText").textContent="Saved In This Browser"}catch(e){$("#storageText").textContent="Export Backup To Save";console.warn(e)}clearTimeout(saveTimer);saveTimer=setTimeout(saveFolder,250);if(renderAfter)render()}
@@ -229,7 +229,7 @@ function habitAccent(h){const a=habitAllocations(h);return a.length>1?SPECIAL_CO
 function snapshot(h){const p=P(h.poolId);return {habitId:h.id,name:h.name,poolName:p?.name||"Habit Library",points:(h.points||[]).map(x=>({dimensionId:x.dimensionId,dimensionName:D(x.dimensionId)?.name||"Archived Dimension",points:Number(x.points)||0})),mva:Number(data.settings.mva)||.25}}
 function pointsFor(s,status){const m=status==="completed"?1:status==="mva"?s.mva:0;return s.points.reduce((a,x)=>a+x.points*m,0)}
 function cycle(id,date,status){
- const h=H(id);if(!h||!["completed","mva","missed"].includes(status))return;
+ const h=H(id);if(!h||!OUTCOME_STATUSES.has(status))return;
  const rec=ensureDateRecord(date),previous=rec.items[id];
  if(previous?.status===status){delete rec.items[id];if(date<today())queueReconciliationItem(date,id);cleanupDateRecord(date)}
  else{
@@ -244,7 +244,7 @@ function rawPoints(dimId,range){
  Object.entries(data.records||{}).forEach(([date,rec])=>{
   if(date<start||date<(data.settings.trackingStartDate||end)||date>end||isSpecialDay(date))return;
   Object.values(rec.items||{}).forEach(it=>{
-   const s=it.snapshot;if(!s||!Array.isArray(s.points)||!["completed","mva","missed"].includes(it.status))return;
+   const s=it.snapshot;if(!s||!Array.isArray(s.points)||!OUTCOME_STATUSES.has(it.status))return;
    const mult=it.status==="completed"?1:it.status==="mva"?(Number(s.mva)||.25):0;
    s.points.forEach(x=>{if(x.dimensionId===dimId)total+=Number(x.points||0)*mult});
   });
@@ -672,12 +672,12 @@ function statsDateRange(){
 function isSpecialDay(date){return data.records?.[date]?.specialDay===true}
 function isPerformanceDate(date){return validDateKey(date)&&date>=(data.settings.trackingStartDate||today())&&date<=today()&&!isSpecialDay(date)}
 function inStatsRange(date){const {start,end}=statsDateRange();return isPerformanceDate(date)&&date>=start&&date<=end}
-function statsRecords(){return Object.entries(data.records||{}).filter(([date,record])=>inStatsRange(date)&&Object.values(record.items||{}).some(item=>["completed","mva","missed"].includes(item?.status))).sort((a,b)=>a[0].localeCompare(b[0]))}
-function archiveRecords(){const {start,end}=statsDateRange();return Object.entries(data.records||{}).filter(([date,record])=>validDateKey(date)&&date>=start&&date<=end&&(Object.values(record.items||{}).some(item=>["completed","mva","missed"].includes(item?.status))||record.specialDay||String(record.specialNote||"").trim())).sort((a,b)=>a[0].localeCompare(b[0]))}
-function dailyRecordPoints(record){return Object.values(record?.items||{}).reduce((sum,item)=>sum+(item?.snapshot&&["completed","mva","missed"].includes(item.status)?pointsFor(item.snapshot,item.status):0),0)}
-function knownOutcomeCount(record){return Object.values(record?.items||{}).filter(item=>["completed","mva","missed"].includes(item?.status)).length}
-function isFullyLoggedDay(date,record){const expected=eligibleHabitIdsForDate(date);return expected.length>0&&expected.every(id=>["completed","mva","missed"].includes(record?.items?.[id]?.status))}
-function statsHabitRecords(id){const rows=[];statsRecords().forEach(([date,record])=>{const item=record.items?.[id];if(item?.snapshot&&["completed","mva","missed"].includes(item.status))rows.push({date,item})});return rows}
+function statsRecords(){return Object.entries(data.records||{}).filter(([date,record])=>inStatsRange(date)&&Object.values(record.items||{}).some(item=>OUTCOME_STATUSES.has(item?.status))).sort((a,b)=>a[0].localeCompare(b[0]))}
+function archiveRecords(){const {start,end}=statsDateRange();return Object.entries(data.records||{}).filter(([date,record])=>validDateKey(date)&&date>=start&&date<=end&&(Object.values(record.items||{}).some(item=>OUTCOME_STATUSES.has(item?.status))||record.specialDay||String(record.specialNote||"").trim())).sort((a,b)=>a[0].localeCompare(b[0]))}
+function dailyRecordPoints(record){return Object.values(record?.items||{}).reduce((sum,item)=>sum+(item?.snapshot&&OUTCOME_STATUSES.has(item.status)?pointsFor(item.snapshot,item.status):0),0)}
+function knownOutcomeCount(record){return Object.values(record?.items||{}).filter(item=>OUTCOME_STATUSES.has(item?.status)).length}
+function isFullyLoggedDay(date,record){const expected=eligibleHabitIdsForDate(date);return expected.length>0&&expected.every(id=>OUTCOME_STATUSES.has(record?.items?.[id]?.status))}
+function statsHabitRecords(id){const rows=[];statsRecords().forEach(([date,record])=>{const item=record.items?.[id];if(item?.snapshot&&OUTCOME_STATUSES.has(item.status))rows.push({date,item})});return rows}
 function renderWeeklyDistribution(){
  const totals=Array(7).fill(0),counts=Array(7).fill(0),labels=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],{start,end}=statsDateRange();
  for(let date=start;date<=end;date=shiftDateKey(date,1)){
@@ -693,7 +693,7 @@ function renderWeeklyDistribution(){
 function renderHabitSpotlight(records=statsRecords()){
  const host=$("#spotlightChart"),entriesByHabit=new Map();
  records.forEach(([date,record])=>Object.entries(record.items||{}).forEach(([id,item])=>{
-  if(!item?.snapshot||!["completed","mva","missed"].includes(item.status))return;
+  if(!item?.snapshot||!OUTCOME_STATUSES.has(item.status))return;
   const entries=entriesByHabit.get(id)||[];
   entries.push({date,item});entriesByHabit.set(id,entries);
  }));
@@ -749,7 +749,7 @@ function toggleSpecialDay(date){
  if(shouldEdit)data.settings.pendingReconciliation=(data.settings.pendingReconciliation||[]).filter(row=>row.date!==date);
  else if(date<today()){
   eligibleHabitIdsForDate(date).forEach(id=>{
-   if(!["completed","mva","missed"].includes(record.items?.[id]?.status)&&!(record.acknowledgedUnrecordedIds||[]).includes(id))queueReconciliationItem(date,id);
+   if(!OUTCOME_STATUSES.has(record.items?.[id]?.status)&&!(record.acknowledgedUnrecordedIds||[]).includes(id))queueReconciliationItem(date,id);
   });
  }
  cleanupDateRecord(date);save();
@@ -792,7 +792,7 @@ function hideArchiveNoteTooltip(){
 function openArchiveDay(date){if(!validDateKey(date)||!data.records[date])return;selectedDate=date;view="tracker";render();window.scrollTo({top:0,behavior:"smooth"})}
 function renderHabitLeaders(records=statsRecords()){
  const cats=[["completed","Most Completed","Full completions"],["mva","Most MVAed","Minimum viable actions"],["missed","Most Missed","Recorded misses"]],totals=new Map();
- records.forEach(([,record])=>Object.entries(record.items||{}).forEach(([id,item])=>{if(!["completed","mva","missed"].includes(item?.status))return;const v=totals.get(id)||{completed:0,mva:0,missed:0,name:item.snapshot?.name||H(id)?.name||"Unknown Habit"};v[item.status]++;totals.set(id,v)}));
+ records.forEach(([,record])=>Object.entries(record.items||{}).forEach(([id,item])=>{if(!OUTCOME_STATUSES.has(item?.status))return;const v=totals.get(id)||{completed:0,mva:0,missed:0,name:item.snapshot?.name||H(id)?.name||"Unknown Habit"};v[item.status]++;totals.set(id,v)}));
  $("#habitLeaders").innerHTML=cats.map(([key,label,desc])=>{const max=Math.max(0,...Array.from(totals.values(),v=>v[key])),leaders=max?Array.from(totals.entries()).filter(([,v])=>v[key]===max).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([id,v])=>({id,...v})):[],visible=leaders.slice(0,2),remaining=leaders.length-visible.length;return '<section class="leader-category"><div class="leader-category-heading"><span>'+label+'</span><small>'+desc+'</small></div>'+(leaders.length?'<div class="leader-names">'+visible.map(v=>'<div class="leader-row"><strong>'+esc(v.name)+'</strong><span>'+v[key]+'</span></div>').join("")+(remaining?'<div class="leader-more">+'+remaining+' more</div>':'')+'</div>':'<div class="leader-empty">No records</div>')+'</section>'}).join("");
 }
 function renderStats(){
@@ -833,7 +833,7 @@ function prepareReconciliationAtLaunch(){
  const pending=new Map();
  (settings.pendingReconciliation||[]).forEach(row=>{
   if(!validDateKey(row.date)||row.date<start||row.date>yesterday||isSpecialDay(row.date))return;
-  const ids=(row.habitIds||[]).filter(id=>H(id)&&eligibleHabitIdsForDate(row.date).includes(id)&&!["completed","mva","missed"].includes(data.records[row.date]?.items?.[id]?.status)&&!(data.records[row.date]?.acknowledgedUnrecordedIds||[]).includes(id));
+  const ids=(row.habitIds||[]).filter(id=>H(id)&&eligibleHabitIdsForDate(row.date).includes(id)&&!OUTCOME_STATUSES.has(data.records[row.date]?.items?.[id]?.status)&&!(data.records[row.date]?.acknowledgedUnrecordedIds||[]).includes(id));
   if(ids.length)pending.set(row.date,new Set(ids));
  });
  let date=cursor<start?shiftDateKey(start,-1):cursor;
@@ -841,7 +841,7 @@ function prepareReconciliationAtLaunch(){
   date=shiftDateKey(date,1);
   if(date<start||isSpecialDay(date))continue;
   const record=data.records[date],acknowledged=new Set(record?.acknowledgedUnrecordedIds||[]);
-  const missing=eligibleHabitIdsForDate(date).filter(id=>!["completed","mva","missed"].includes(record?.items?.[id]?.status)&&!acknowledged.has(id));
+  const missing=eligibleHabitIdsForDate(date).filter(id=>!OUTCOME_STATUSES.has(record?.items?.[id]?.status)&&!acknowledged.has(id));
   if(missing.length){const set=pending.get(date)||new Set();missing.forEach(id=>set.add(id));pending.set(date,set)}
  }
  settings.lastReconciledThrough=yesterday;
@@ -866,7 +866,7 @@ function renderReconciliationModal(){
 function reconcileEntry(date,id,status){
  const h=H(id);if(!h)return;const record=ensureDateRecord(date);
  if(status==="unknown")record.acknowledgedUnrecordedIds=Array.from(new Set([...(record.acknowledgedUnrecordedIds||[]),id]));
- else if(["completed","mva","missed"].includes(status)){
+ else if(OUTCOME_STATUSES.has(status)){
   record.items[id]={status,snapshot:snapshotForHabitDate(h,date),updatedAt:new Date().toISOString()};
   record.acknowledgedUnrecordedIds=(record.acknowledgedUnrecordedIds||[]).filter(x=>x!==id);
  }
