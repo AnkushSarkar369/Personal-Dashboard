@@ -415,7 +415,7 @@ function drawRadar(ds,vals){
   out+='<g class="radar-tip" role="button" tabindex="0" data-dim="'+esc(d.id)+'" data-open-dimension="'+esc(d.id)+'" aria-label="Open '+name+' in Habit Library" style="--dimension-accent:'+col[i]+'"><line class="radar-axis" x1="'+cx+'" y1="'+cy+'" x2="'+f(t[0])+'" y2="'+f(t[1])+'" pointer-events="none"/><circle class="radar-end-hit" cx="'+f(t[0])+'" cy="'+f(t[1])+'" r="13" fill="transparent" pointer-events="all"/><circle class="radar-end" cx="'+f(t[0])+'" cy="'+f(t[1])+'" r="3" pointer-events="none"/><text class="radar-index" x="'+f(L[0])+'" y="'+f(ly-15)+'" text-anchor="'+anchor+'" dominant-baseline="central">'+dimIndex(i)+'</text><text class="radar-name" data-dimension-name="true" x="'+f(L[0])+'" y="'+f(ly+8)+'" text-anchor="'+anchor+'" dominant-baseline="central">'+name+'</text></g>';
  });
  // data: per-dimension gradient sector, coloured outer edge, node
- out+='<g class="radar-data">';
+ out+='<g class="radar-data" pointer-events="none">';
  ds.forEach((d,i)=>{
   const p=P[i];let shape;
   if(n>=3){const m1=mid(P[(i-1+n)%n],p),m2=mid(p,P[(i+1)%n]);
