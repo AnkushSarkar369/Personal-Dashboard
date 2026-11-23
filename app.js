@@ -270,6 +270,7 @@ function renderLibrary(){
      '<span class="library-habit-points">'+fmt(allocatedPoints(h))+' <small>pts</small></span>'+
     '</button>'+
     '<button class="library-lock '+(locked?'is-locked':'is-unlocked')+'" data-toggle-habit="'+esc(h.id)+'" aria-label="'+(locked?'Activate ':'Deactivate ')+esc(h.name)+'" title="'+(locked?'Activate Habit':'Deactivate Habit')+'">'+lockIcon(locked)+'</button>'+
+    '<button class="library-lock library-delete" data-delete-habit="'+esc(h.id)+'" aria-label="Delete '+esc(h.name)+'" title="Delete Habit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9 7V4.5h6V7m-8.5 0 1 13h9l1-13M10 10.5v6m4-6v6"></path></svg></button>'+
    '</article>';
   }).join(""):'<div class="library-group-empty">'+(isInactive?'No inactive habits.':'No active habits yet.')+'</div>';
   const inactiveDisclosure=inactive.length
@@ -327,7 +328,6 @@ function openHabitModal(id,preselectedDimensionId=null){
   '<header class="library-dialog-header"><div><div class="eyebrow">'+(h?'Habit Configuration':'New Habit')+'</div><h3 id="libraryDialogTitle">'+(h?'Edit Habit':'Add A Habit')+'</h3></div><button type="button" class="modal-close" data-close-library-modal aria-label="Close">×</button></header>'+
   '<form id="libraryHabitForm" class="library-dialog-form" novalidate><div class="form-field"><label for="libraryHabitName">Habit Name</label><input id="libraryHabitName" maxlength="60" required value="'+esc(h?.name||'')+'" placeholder="e.g. Read for 30 minutes"></div>'+
   '<div class="library-modal-section"><div class="library-modal-section-heading"><div><strong>Dimensions</strong><small>Choose every dimension this habit contributes to.</small></div><span>Points / Dimension</span></div><div class="dimension-choice-list">'+options+'</div></div>'+
-  '<p class="library-modal-note">Habits assigned to multiple dimensions automatically receive the shared aqua identity.</p>'+
   '<div class="library-dialog-actions"><button type="button" class="secondary-button" data-close-library-modal>Cancel</button><button type="submit" class="primary-button">'+(h?'Save Changes':'Create Habit')+'</button></div></form></section>';
  modal.hidden=false;$("#libraryHabitName").focus();
 }
@@ -348,6 +348,19 @@ function submitHabitModal(e){
  closeHabitModal();save();toast(h?"Habit Updated.":"Habit Added.");
 }
 function toggleHabit(id){const h=H(id);if(!h)return;h.active=!(h.active&&!h.archived);h.archived=false;if(!h.active)habitAllocations(h).forEach(a=>expandedInactiveDimensions.add(a.dimensionId));lastTouchedHabitId=id;save();toast(h.active?"Habit activated.":"Habit made inactive.")}
+function deleteHabit(id){
+ const h=H(id);if(!h)return;
+ const historyCount=Object.values(data.records||{}).reduce((count,record)=>count+(record.items?.[id]?1:0),0);
+ const message='Permanently delete "'+h.name+'"'+(historyCount?' and its '+historyCount+' historical record'+(historyCount===1?'':'s'):'')+'? This cannot be undone.';
+ if(!confirm(message))return;
+ data.habits=data.habits.filter(item=>item.id!==id);
+ Object.values(data.records||{}).forEach(record=>{if(record.items)delete record.items[id]});
+ Object.keys(data.records||{}).forEach(date=>{if(!Object.keys(data.records[date].items||{}).length)delete data.records[date]});
+ if(selectedStatsHabit===id)selectedStatsHabit=null;
+ if(statsSpotlightHabit===id)statsSpotlightHabit=null;
+ lastTouchedHabitId=null;
+ save();toast("Habit And Its History Deleted.");
+}
 
 function statsDateRange(){const end=new Date(today()+"T12:00:00"),start=new Date(end);if(period==="1m")start.setDate(start.getDate()-29);else if(period==="3m")start.setDate(start.getDate()-89);else{const dates=Object.keys(data.records||{}).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).sort();if(dates.length)start.setTime(new Date(dates[0]+"T12:00:00").getTime())}return {start,end}}
 function inStatsRange(date){const {start,end}=statsDateRange(),dt=new Date(date+"T12:00:00");return !Number.isNaN(dt.getTime())&&dt>=start&&dt<=end}
@@ -422,6 +435,7 @@ document.addEventListener("click",e=>{
  const go=e.target.closest("[data-go]");if(go){switchView(go.dataset.go);return}
  const addForDimension=e.target.closest("[data-add-habit-dimension]");if(addForDimension){openHabitModal(null,addForDimension.dataset.addHabitDimension);return}
  const addDim=e.target.closest("[data-add-dimension]");if(addDim){addDimension();return}
+ const removeHabit=e.target.closest("[data-delete-habit]");if(removeHabit){deleteHabit(removeHabit.dataset.deleteHabit);return}
  const toggle=e.target.closest("[data-toggle-habit]");if(toggle){toggleHabit(toggle.dataset.toggleHabit);return}
  const editHabit=e.target.closest("[data-edit-habit]");if(editHabit){openHabitModal(editHabit.dataset.editHabit);return}
  const dim=e.target.closest("[data-edit-dimension]");if(dim){editDimension(dim.dataset.editDimension);return}
