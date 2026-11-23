@@ -914,3 +914,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 .leader-row{padding:4px 2px}
 .leader-more{padding:4px 2px 0;color:#9b8bc8;font-size:9px;font-weight:650;letter-spacing:.02em}
 @media(max-width:760px){.stats-quadrants{grid-auto-rows:320px}.stats-quadrant{height:320px;min-height:0}}
+
+
+/* Habit Library cleanup: title-only masthead, inline dimension count, single add control. */
+.library-intro{margin:0 auto 20px;padding:0 0 12px}
+.library-title-row{margin:0 0 8px;align-items:center}
+.library-title-lockup h2{font-size:clamp(30px,3.4vw,42px)}
+.library-quote{margin-top:5px}
+.dimension-title-wrap{display:flex;align-items:center;gap:9px;min-width:0}
+.dimension-name-button{padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.dimension-name-button h3,.dimension-name-button span{color:inherit}
+.dimension-name-button:hover{color:#d6c8ff}
+.dimension-name-button:focus-visible{outline:1px solid var(--dimension-accent);outline-offset:4px;border-radius:3px}
+.dimension-title-wrap .dimension-total{font-size:10px;opacity:.68}
+.dimension-header-tools{display:flex;align-items:center;gap:0}
+@media(max-width:760px){.library-title-row{align-items:center;flex-direction:row;gap:12px}.library-title-lockup h2{font-size:32px}.library-counts{align-self:auto}}
