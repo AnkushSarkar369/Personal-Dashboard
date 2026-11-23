@@ -929,3 +929,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
 .dimension-title-wrap .dimension-total{font-size:10px;opacity:.68}
 .dimension-header-tools{display:flex;align-items:center;gap:0}
 @media(max-width:760px){.library-title-row{align-items:center;flex-direction:row;gap:12px}.library-title-lockup h2{font-size:32px}.library-counts{align-self:auto}}
+
+
+/* Habit Library masthead: restore breathing room; dimension headers stay minimal. */
+.library-intro{margin:0 auto 30px;padding:12px 0 24px}
+.library-title-row{margin:0 0 18px;align-items:flex-end;gap:24px}
+.library-title-lockup h2{font-size:clamp(38px,4.2vw,50px);line-height:1.08}
+.library-counts{padding:10px 14px}
+.library-quote{margin-top:12px;max-width:680px;line-height:1.75}
+.dimension-title-wrap{gap:9px}
+.dimension-title-wrap .dimension-total{display:none}
+.dimension-card-header{padding-top:17px;padding-bottom:15px}
+@media(max-width:760px){.library-intro{margin-bottom:24px;padding:8px 0 19px}.library-title-row{align-items:flex-start;flex-direction:column;gap:12px;margin-bottom:14px}.library-title-lockup h2{font-size:38px}.library-quote{margin-top:10px;line-height:1.7}}
