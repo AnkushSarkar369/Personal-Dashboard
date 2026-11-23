@@ -280,6 +280,7 @@ function importData(file){const reader=new FileReader();reader.onload=()=>{try{d
 async function chooseFolder(){if(!window.showDirectoryPicker){toast("Folder Saving Is Not Supported Here. Use JSON Export/Import.");return}try{dataFolder=await window.showDirectoryPicker({mode:"readwrite"});await saveFolder();renderSettings();toast("Data Folder Connected.")}catch(e){if(e.name!=="AbortError")toast("Could Not Connect Folder.")}}
 async function saveFolder(){if(!dataFolder)return;try{const file=await dataFolder.getFileHandle("habit-radar.json",{create:true}),w=await file.createWritable();await w.write(JSON.stringify(data,null,2));await w.close()}catch(e){console.warn(e);toast("Folder Save Failed. Export A JSON Backup.")}}
 function restoreSample(){if(confirm("Replace The Current Workspace With The Original Sample Data? Export A Backup First If Needed.")){data=sampleData();save();toast("Sample Workspace Restored.")}}
+function resetAllData(){if(!confirm("Permanently erase all dimensions, habits, settings and historical records from this workspace? This cannot be undone. Export a backup first if needed."))return;data={version:2,visualVersion:2,settings:{mva:.25,defaultBenchmark:1000},dimensions:[],pools:[],habits:[],records:{}};selectedDate=today();selectedStatsHabit=null;statsSpotlightHabit=null;save();toast("All Workspace Data Cleared.")}
 document.addEventListener("click",e=>{
  if(e.target.closest("#sidebarClose")){setSidebarOpen($(".app").classList.contains("sidebar-collapsed"));return}
  const close=e.target.closest("[data-close-library-modal]");if(close){closeHabitModal();return}
@@ -315,6 +316,7 @@ $("#importData").onchange=e=>{if(e.target.files[0])importData(e.target.files[0])
 $("#chooseFolder").onclick=chooseFolder;
 $("#saveNow").onclick=()=>dataFolder?saveFolder().then(()=>toast("Saved.")):exportData();
 $("#resetData").onclick=restoreSample;
+$("#resetAllData").onclick=resetAllData;
 
 document.addEventListener("dragstart",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!e.target.closest(".daily-grip")){e.preventDefault();return}draggedHabitId=row.dataset.dragHabit;row.classList.add("dragging");if(e.dataTransfer){e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",draggedHabitId)}});
 document.addEventListener("dragover",e=>{const row=e.target.closest("[data-drag-habit]");if(!row||!draggedHabitId)return;e.preventDefault();$$( ".daily-habit.drop-target").forEach(x=>x.classList.remove("drop-target"));if(row.dataset.dragHabit!==draggedHabitId)row.classList.add("drop-target")});
