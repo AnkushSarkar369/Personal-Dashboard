@@ -91,13 +91,9 @@ function queueReconciliationItem(date,id){
  if(!row.habitIds.includes(id))row.habitIds.push(id);
  pending.sort((a,b)=>a.date.localeCompare(b.date));
 }
-function persistWithoutRender(){
- try{localStorage.setItem("habit-radar-state",JSON.stringify(data));$("#storageDot").classList.add("saved");$("#storageText").textContent="Saved In This Browser"}
- catch(e){$("#storageText").textContent="Export Backup To Save";console.warn(e)}
- clearTimeout(saveTimer);saveTimer=setTimeout(saveFolder,250);
-}
+function persistWithoutRender(){persist(false)}
 
-let period="1m",view="overview",selectedDate=today(),archiveSelectedDate=today(),editingSpecialDate=null,selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,lastTouchedHabitId=null,draggedDimensionId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
+let period="1m",view="overview",selectedDate=today(),editingSpecialDate=null,selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,lastTouchedHabitId=null,draggedDimensionId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
 function sampleStructure(){
  const dims=[["health","Health",COLORS[0]],["academics","Academics",COLORS[1]],["relationships","Relationships",COLORS[2]],["looks","Looksmaxxing",COLORS[3]]].map(([id,name,color])=>({id:"d-"+id,name,color,benchmark:1000,archived:false}));
  const pools=[
@@ -221,10 +217,10 @@ function clockMarkup(date){const time=formatIstTime(date).replace(/\sIST$/,"");r
 function resolvedCount(record,habits){return habits.reduce((n,h)=>n+(["completed","mva","missed"].includes(record?.items?.[h.id]?.status)?1:0),0)}
 function fmt(n){return (Math.round((Number(n)||0)*100)/100).toLocaleString(undefined,{maximumFractionDigits:2})}
 function toast(s){const e=$("#toast");e.textContent=titleCase(s);e.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>e.classList.remove("show"),2300)}
-function save(){try{localStorage.setItem("habit-radar-state",JSON.stringify(data));$("#storageDot").classList.add("saved");$("#storageText").textContent="Saved In This Browser"}catch(e){$("#storageText").textContent="Export Backup To Save";console.warn(e)}clearTimeout(saveTimer);saveTimer=setTimeout(saveFolder,250);render()}
+function persist(renderAfter){try{localStorage.setItem("habit-radar-state",JSON.stringify(data));$("#storageDot").classList.add("saved");$("#storageText").textContent="Saved In This Browser"}catch(e){$("#storageText").textContent="Export Backup To Save";console.warn(e)}clearTimeout(saveTimer);saveTimer=setTimeout(saveFolder,250);if(renderAfter)render()}
+function save(){persist(true)}
 function habitAllocations(h){return (Array.isArray(h?.points)?h.points:[]).filter((x,i,a)=>D(x.dimensionId)&&a.findIndex(y=>y.dimensionId===x.dimensionId)===i)}
 function habitAccent(h){const a=habitAllocations(h);return a.length>1?SPECIAL_COLOR:D(a[0]?.dimensionId)?.color||"#aeb8c7"}
-function activeHabits(){return data.habits.filter(h=>h.active&&!h.archived&&habitAllocations(h).length>0)}
 function snapshot(h){const p=P(h.poolId);return {habitId:h.id,name:h.name,poolName:p?.name||"Habit Library",points:(h.points||[]).map(x=>({dimensionId:x.dimensionId,dimensionName:D(x.dimensionId)?.name||"Archived Dimension",points:Number(x.points)||0})),mva:Number(data.settings.mva)||.25}}
 function pointsFor(s,status){const m=status==="completed"?1:status==="mva"?s.mva:0;return s.points.reduce((a,x)=>a+x.points*m,0)}
 function cycle(id,date,status){
@@ -389,7 +385,7 @@ function renderOverview(){
 }
 function drawRadar(ds,vals){
  const svg=$("#radar"),n=ds.length,compact=!!(window.matchMedia&&window.matchMedia("(max-width:700px)").matches);
- const W=compact?760:1000,H=compact?900:760,cx=W/2,cy=compact?450:382,r=compact?235:275,lab=compact?1.2:1.2;
+ const W=compact?760:1000,H=compact?900:760,cx=W/2,cy=compact?450:382,r=compact?235:275,lab=1.2;
  svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("class",compact?"is-compact":"");
  if(!n){svg.innerHTML='<text class="radar-empty" x="'+cx+'" y="'+cy+'" text-anchor="middle">Create your first dimension</text>';return}
  const max=Math.max(25,...vals)*1.18,TAU=Math.PI*2;
@@ -729,7 +725,6 @@ function saveSpecialDayNote(date){
 }
 function toggleSpecialDay(date){
  if(!validDateKey(date)||date>today())return;
- archiveSelectedDate=date;
  hideArchiveNoteTooltip();
  const record=ensureDateRecord(date);record.specialDay=!record.specialDay;
  const shouldEdit=record.specialDay;
