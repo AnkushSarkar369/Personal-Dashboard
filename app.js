@@ -3,7 +3,13 @@
 const DIMENSION_COLORS=["#4ade80","#60a5fa","#fbbf24","#fb923c","#f87171","#a3e635","#94a3b8"],SPECIAL_COLOR="#22d3ee",COLORS=DIMENSION_COLORS;
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const uid=()=> "hr-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
-const today=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day};
+const IST_DATE_PARTS_FORMATTER=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"});
+const ORDINAL_DATE_FORMATTER=new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",weekday:"long",month:"long",day:"numeric",year:"numeric"});
+const IST_TIME_FORMATTER=new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true});
+const ARCHIVE_DATE_FORMATTER=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"});
+const RECONCILIATION_DATE_FORMATTER=new Intl.DateTimeFormat("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric",timeZone:"Asia/Kolkata"});
+const LOCAL_SHORT_DATE_FORMATTER=new Intl.DateTimeFormat(undefined,{weekday:"short",month:"short",day:"numeric"});
+const today=()=>{const p=Object.fromEntries(IST_DATE_PARTS_FORMATTER.formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day};
 
 function validDateKey(value){
  if(typeof value!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
@@ -210,8 +216,8 @@ function applyTitleCase(){
  });
 }
 function ordinalDay(day){const n=Number(day),lastTwo=n%100;if(lastTwo>=11&&lastTwo<=13)return n+"th";return n+(n%10===1?"st":n%10===2?"nd":n%10===3?"rd":"th")}
-function formatOrdinalDate(date){const parts=Object.fromEntries(new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",weekday:"long",month:"long",day:"numeric",year:"numeric"}).formatToParts(date).map(x=>[x.type,x.value]));return parts.weekday+", "+parts.month+" "+ordinalDay(parts.day)+", "+parts.year}
-function formatIstTime(date){return date.toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true}).replace(/\b(am|pm)\b/i,x=>x.toUpperCase())+" IST"}
+function formatOrdinalDate(date){const parts=Object.fromEntries(ORDINAL_DATE_FORMATTER.formatToParts(date).map(x=>[x.type,x.value]));return parts.weekday+", "+parts.month+" "+ordinalDay(parts.day)+", "+parts.year}
+function formatIstTime(date){return IST_TIME_FORMATTER.format(date).replace(/\b(am|pm)\b/i,x=>x.toUpperCase())+" IST"}
 function clockMarkup(date){const time=formatIstTime(date).replace(/\sIST$/,"");return '<span class="clock-digits">'+esc(time)+'</span><span class="clock-zone">IST</span>'}
 function resolvedCount(record,habits){return habits.reduce((n,h)=>n+(["completed","mva","missed"].includes(record?.items?.[h.id]?.status)?1:0),0)}
 function fmt(n){return (Math.round((Number(n)||0)*100)/100).toLocaleString(undefined,{maximumFractionDigits:2})}
@@ -367,7 +373,7 @@ function renderActiveView(){
  else if(view==="stats")renderStats();
  else if(view==="settings")renderSettings();
 }
-function render(){const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["","Habit Library"],stats:["","Statistics"],settings:["","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderActiveView();applyTitleCase();syncRadarAtmosphere()}
+function render(){const labels={overview:["Your Character","Overview"],tracker:["Daily Tracker","Daily Tracker"],"habit-stats":["Your Activity","Statistics"],library:["","Habit Library"],stats:["","Statistics"],settings:["","Settings & Data"]};$("#pageEyebrow").textContent=labels[view][0];$("#pageTitle").textContent=labels[view][1];$("#todayLabel").textContent=titleCase(LOCAL_SHORT_DATE_FORMATTER.format(new Date()));$$(".view").forEach(e=>e.classList.toggle("active",e.id==="view-"+view));$$(".nav-item[data-view]").forEach(e=>e.classList.toggle("active",e.dataset.view===view||(view==="habit-stats"&&e.dataset.view==="tracker")));renderActiveView();applyTitleCase();syncRadarAtmosphere()}
 let activeDim=null;
 function dimIndex(i){return String(i+1).padStart(2,"0")}
 function dimColor(d,i){return safeColor(d.color,DIMENSION_COLORS[i%DIMENSION_COLORS.length])}
@@ -718,7 +724,7 @@ function renderDailyArchive(){
  });
  $("#archiveSummary").textContent=recorded+" recorded · "+fully+" fully logged · "+special+" special";
  $("#dailyArchive").innerHTML=rows.length?rows.map(([date,record])=>{
-  const count=knownOutcomeCount(record),points=dailyRecordPoints(record),label=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"}).format(new Date(date+"T12:00:00"));
+  const count=knownOutcomeCount(record),points=dailyRecordPoints(record),label=ARCHIVE_DATE_FORMATTER.format(new Date(date+"T12:00:00"));
   const special=!!record.specialDay;
   const note=String(record.specialNote||"").trim();
   const noteEditor=special&&editingSpecialDate===date?'<div class="archive-note-compact"><textarea rows="2" maxlength="500" data-special-note="'+esc(date)+'" aria-label="Reason for special day" placeholder="Why was this day special?">'+esc(record.specialNote||"")+'</textarea><button type="button" class="archive-note-save" data-save-special-note="'+esc(date)+'">Save</button></div>':"";
@@ -850,7 +856,7 @@ function renderReconciliationModal(){
  host.innerHTML='<div class="reconciliation-backdrop" data-dismiss-reconciliation></div><section class="reconciliation-dialog" role="dialog" aria-modal="true" aria-labelledby="reconciliationTitle">'+
   '<header class="reconciliation-header"><div><div class="eyebrow">HISTORICAL CHECK-IN</div><h2 id="reconciliationTitle">A Few Entries Were Left Open</h2><p>'+count+' unrecorded habit'+(count===1?'':'s')+' across '+pending.length+' day'+(pending.length===1?'':'s')+'. Enter what you remember; unknown is allowed.</p></div><button type="button" class="reconciliation-close" data-dismiss-reconciliation aria-label="Review later">×</button></header>'+
   '<div class="reconciliation-days">'+pending.map(row=>{
-   const label=new Intl.DateTimeFormat("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric",timeZone:"Asia/Kolkata"}).format(new Date(row.date+"T12:00:00"));
+   const label=RECONCILIATION_DATE_FORMATTER.format(new Date(row.date+"T12:00:00"));
    return '<section class="reconciliation-day"><h3>'+esc(label)+'</h3>'+row.habitIds.map(id=>{
     const h=H(id),p=eligibilityHabitPeriod(id,row.date),name=p?.name||h?.name||"Habit";
     return '<div class="reconciliation-habit"><strong data-preserve-case>'+esc(name)+'</strong><div class="reconciliation-actions"><button type="button" data-reconcile-status="completed" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">Completed</button><button type="button" data-reconcile-status="mva" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">MVA</button><button type="button" data-reconcile-status="missed" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">Missed</button><button type="button" class="reconcile-unknown" data-reconcile-status="unknown" data-reconcile-date="'+esc(row.date)+'" data-reconcile-habit="'+esc(id)+'">Leave Unknown</button></div></div>';
