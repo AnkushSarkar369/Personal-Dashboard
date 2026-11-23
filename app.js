@@ -97,7 +97,7 @@ function persistWithoutRender(){
  clearTimeout(saveTimer);saveTimer=setTimeout(saveFolder,250);
 }
 
-let period="1m",view="overview",selectedDate=today(),archiveSelectedDate=today(),selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,lastTouchedHabitId=null,draggedDimensionId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
+let period="1m",view="overview",selectedDate=today(),archiveSelectedDate=today(),editingSpecialDate=null,selectedStatsHabit=null,statsSpotlightHabit=null,dataFolder=null,saveTimer=null,lastTouchedHabitId=null,draggedDimensionId=null,expandedInactiveDimensions=new Set(),folderWriteQueue=Promise.resolve();
 function sampleStructure(){
  const dims=[["health","Health",COLORS[0]],["academics","Academics",COLORS[1]],["relationships","Relationships",COLORS[2]],["looks","Looksmaxxing",COLORS[3]]].map(([id,name,color])=>({id:"d-"+id,name,color,benchmark:1000,archived:false}));
  const pools=[
@@ -713,20 +713,22 @@ function renderDailyArchive(){
  $("#dailyArchive").innerHTML=rows.length?rows.map(([date,record])=>{
   const count=knownOutcomeCount(record),points=dailyRecordPoints(record),label=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"}).format(new Date(date+"T12:00:00"));
   const special=!!record.specialDay;
-  const noteEditor=special?'<div class="archive-note-compact"><textarea rows="2" maxlength="500" data-special-note="'+esc(date)+'" aria-label="Special day note" placeholder="Add a note…">'+esc(record.specialNote||"")+'</textarea><button type="button" data-save-special-note="'+esc(date)+'">Save</button></div>':"";
-  return '<div class="archive-entry"><div class="archive-entry-main"><button type="button" class="archive-row '+(special?'is-special':'')+'" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+(special?'<span class="archive-special-badge">★ Special</span>':"")+'</span><span class="archive-count">'+(special?"Excluded":count+" logged")+'</span><strong class="archive-points">'+(special?"—":fmt(points)+' <small>pts</small>')+'</strong><span class="archive-open" aria-hidden="true">↗</span></button><button type="button" class="archive-row-star '+(special?'is-special':'')+'" data-toggle-special="'+esc(date)+'" aria-label="'+(special?"Remove Special Day":"Mark Special Day")+'" aria-pressed="'+special+'" title="'+(special?"Remove Special Day":"Mark Special Day")+'">'+(special?"★":"☆")+'</button></div>'+noteEditor+'</div>';
+  const noteEditor=special&&editingSpecialDate===date?'<div class="archive-note-compact"><textarea rows="2" maxlength="500" data-special-note="'+esc(date)+'" aria-label="Special day note" placeholder="Reason for this day…">'+esc(record.specialNote||"")+'</textarea><button type="button" data-save-special-note="'+esc(date)+'">Save</button></div>':"";
+  const note=String(record.specialNote||"").trim();
+  return '<div class="archive-entry"><div class="archive-entry-main"><button type="button" class="archive-row '+(special?'is-special':'')+'" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+'</span><span class="archive-count">'+(special?"Excluded":count+" logged")+'</span><strong class="archive-points">'+(special?"—":fmt(points)+' <small>pts</small>')+'</strong><span class="archive-open" aria-hidden="true">↗</span></button><button type="button" class="archive-row-star '+(special?'is-special':'')+'" data-toggle-special="'+esc(date)+'" data-note="'+(special?esc(note):"")+'" aria-label="'+(special?"Remove Special Day":"Mark Special Day")+'" aria-pressed="'+special+'">'+(special?"★":"☆")+'</button></div>'+noteEditor+'</div>';
  }).join(""):'<div class="stats-empty">No recorded days in this period.</div>';
 }
 function saveSpecialDayNote(date){
  if(!validDateKey(date)||date>today())return;
  const record=data.records[date];if(!record?.specialDay)return;
  record.specialNote=$('[data-special-note="'+date+'"]').value.trim();
+ editingSpecialDate=null;
  save();toast("Special Day Note Saved.");
 }
 function toggleSpecialDay(date){
  if(!validDateKey(date)||date>today())return;
  archiveSelectedDate=date;
- const record=ensureDateRecord(date);record.specialDay=!record.specialDay;
+ const record=ensureDateRecord(date);record.specialDay=!record.specialDay;editingSpecialDate=record.specialDay?date:null;
  if(record.specialDay)data.settings.pendingReconciliation=(data.settings.pendingReconciliation||[]).filter(row=>row.date!==date);
  else if(date<today()){
   eligibleHabitIdsForDate(date).forEach(id=>{
