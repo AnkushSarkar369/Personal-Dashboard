@@ -704,18 +704,7 @@ function renderHabitSpotlight(){
  const circles=daily.map((d,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(d.value).toFixed(1)+'" r="3.5" class="spotlight-point"><title>'+esc(d.date)+': '+fmt(d.value)+' points · '+esc(d.status)+'</title></circle>').join("");
  host.innerHTML='<svg class="spotlight-svg" data-preserve-case viewBox="0 0 '+w+' '+ht+'" role="img" aria-label="Daily points for '+esc(h.name)+'"><line x1="'+p.l+'" y1="'+y(0)+'" x2="'+(w-p.r)+'" y2="'+y(0)+'" class="chart-axis"/><line x1="'+p.l+'" y1="'+y(max/2)+'" x2="'+(w-p.r)+'" y2="'+y(max/2)+'" class="chart-gridline"/><polygon points="'+area+'" class="spotlight-area"/><polyline points="'+pts+'" class="spotlight-line"/>'+circles+'<text x="'+p.l+'" y="'+(ht-8)+'" class="chart-date-label">'+esc(daily[0].date.slice(5))+'</text><text x="'+(w-p.r)+'" y="'+(ht-8)+'" text-anchor="end" class="chart-date-label">'+esc(daily[daily.length-1].date.slice(5))+'</text></svg><div class="spotlight-summary"><strong>'+fmt(daily.reduce((n,v)=>n+v.value,0))+'</strong><span>points in selected period</span><span class="spotlight-record-count">'+daily.length+' recorded '+(daily.length===1?"day":"days")+'</span></div>';
 }
-function renderArchiveTools(){
- const input=$("#specialDayDate"),note=$("#specialDayNote"),button=$("#specialDayToggle"),status=$("#specialDayStatus");
- if(!input||!note||!button)return;
- input.max=today();input.value=archiveSelectedDate;
- const record=data.records[archiveSelectedDate],special=!!record?.specialDay;
- note.value=record?.specialNote||"";
- button.textContent=special?"★ Special Day":"☆ Mark Special";
- button.classList.toggle("is-special",special);button.setAttribute("aria-pressed",String(special));
- status.textContent=special?"Excluded from performance statistics":"Preserves notes and existing entries";
-}
 function renderDailyArchive(){
- renderArchiveTools();
  const rows=archiveRecords().slice().reverse();
  const recorded=rows.filter(([date,record])=>isPerformanceDate(date)&&knownOutcomeCount(record)>0).length;
  const fully=rows.filter(([date,record])=>isPerformanceDate(date)&&isFullyLoggedDay(date,record)).length;
@@ -723,20 +712,21 @@ function renderDailyArchive(){
  $("#archiveSummary").textContent=recorded+" recorded · "+fully+" fully logged · "+special+" special";
  $("#dailyArchive").innerHTML=rows.length?rows.map(([date,record])=>{
   const count=knownOutcomeCount(record),points=dailyRecordPoints(record),label=new Intl.DateTimeFormat("en-IN",{weekday:"short",day:"numeric",month:"short",timeZone:"Asia/Kolkata"}).format(new Date(date+"T12:00:00"));
-  const specialBadge=record.specialDay?'<span class="archive-special-badge">★ Special</span>':"";
-  const note=record.specialNote?'<small class="archive-note-preview">'+esc(record.specialNote)+'</small>':"";
-  return '<button type="button" class="archive-row '+(record.specialDay?'is-special':'')+'" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+specialBadge+note+'</span><span class="archive-count">'+(record.specialDay?"Excluded":count+" logged")+'</span><strong class="archive-points">'+(record.specialDay?"—":fmt(points)+' <small>pts</small>')+'</strong><span class="archive-open" aria-hidden="true">↗</span></button>';
+  const special=!!record.specialDay;
+  const noteEditor=special?'<div class="archive-inline-note"><textarea rows="1" maxlength="500" data-special-note="'+esc(date)+'" aria-label="Note for '+esc(label)+'" placeholder="Add a note about this Special Day…">'+esc(record.specialNote||"")+'</textarea><button type="button" data-save-special-note="'+esc(date)+'">Save</button></div>':"";
+  return '<div class="archive-entry"><div class="archive-entry-main"><button type="button" class="archive-row '+(special?'is-special':'')+'" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+(special?'<span class="archive-special-badge">★ Special</span>':"")+'</span><span class="archive-count">'+(special?"Excluded":count+" logged")+'</span><strong class="archive-points">'+(special?"—":fmt(points)+' <small>pts</small>')+'</strong><span class="archive-open" aria-hidden="true">↗</span></button><button type="button" class="archive-row-star '+(special?'is-special':'')+'" data-toggle-special="'+esc(date)+'" aria-label="'+(special?"Remove Special Day":"Mark Special Day")+'" aria-pressed="'+special+'" title="'+(special?"Remove Special Day":"Mark Special Day")+'">'+(special?"★":"☆")+'</button></div>'+noteEditor+'</div>';
  }).join(""):'<div class="stats-empty">No recorded days in this period.</div>';
 }
-function saveSpecialDayNote(){
- const date=archiveSelectedDate;if(!validDateKey(date)||date>today())return;
- const value=$("#specialDayNote").value.trim(),record=data.records[date];
- if(!record&&!value){toast("No Note To Save.");return}
- const target=ensureDateRecord(date);target.specialNote=value;cleanupDateRecord(date);save();toast("Date Note Saved.");
+function saveSpecialDayNote(date){
+ if(!validDateKey(date)||date>today())return;
+ const record=data.records[date];if(!record?.specialDay)return;
+ record.specialNote=$('[data-special-note="'+date+'"]').value.trim();
+ save();toast("Special Day Note Saved.");
 }
-function toggleSpecialDay(){
- const date=archiveSelectedDate;if(!validDateKey(date)||date>today())return;
- const record=ensureDateRecord(date);record.specialNote=$("#specialDayNote").value.trim();record.specialDay=!record.specialDay;
+function toggleSpecialDay(date){
+ if(!validDateKey(date)||date>today())return;
+ archiveSelectedDate=date;
+ const record=ensureDateRecord(date);record.specialDay=!record.specialDay;
  if(record.specialDay)data.settings.pendingReconciliation=(data.settings.pendingReconciliation||[]).filter(row=>row.date!==date);
  else if(date<today()){
   eligibleHabitIdsForDate(date).forEach(id=>{
@@ -763,7 +753,7 @@ function renderSettings(){
  $("#defaultBenchmark").value=data.settings.defaultBenchmark;
  $("#trackingStartDate").value=data.settings.trackingStartDate||today();$("#trackingStartDate").max=today();
  const pending=(data.settings.pendingReconciliation||[]).reduce((n,row)=>n+row.habitIds.length,0);
- $("#reviewPending").hidden=pending===0;$("#reviewPending").textContent=pending?"Review "+pending+" Unrecorded":"No Unrecorded Entries";
+ $("#reviewPending").hidden=pending===0;$("#reviewPending").textContent="Review "+pending+" Unrecorded";$("#reviewPending").title="Open the list of historical habit entries that still need an outcome.";
  $("#trackingStartDetail").textContent="Tracking from "+data.settings.trackingStartDate+". Earlier records are retained but excluded from performance statistics.";
  $("#storageDetail").textContent=dataFolder?"Connected Folder. Automatic JSON Backup Is Enabled.":"Browser Storage Is Active. Folder-Based Saving Is Optional And Only Available In Supported Browsers.";
 }
@@ -864,14 +854,13 @@ document.addEventListener("click",e=>{
  const editHabit=e.target.closest("[data-edit-habit]");if(editHabit){openHabitModal(editHabit.dataset.editHabit);return}
  const dim=e.target.closest("[data-edit-dimension]");if(dim){editDimension(dim.dataset.editDimension);return}
  const periodBtn=e.target.closest("[data-period]");if(periodBtn){period=periodBtn.dataset.period;$$("[data-period]").forEach(b=>b.classList.toggle("selected",b.dataset.period===period));renderActiveView();applyTitleCase();return}
- const specialToggle=e.target.closest("#specialDayToggle");if(specialToggle){toggleSpecialDay();return}
- const noteSave=e.target.closest("#saveSpecialDayNote");if(noteSave){saveSpecialDayNote();return}
+ const specialToggle=e.target.closest("[data-toggle-special]");if(specialToggle){toggleSpecialDay(specialToggle.dataset.toggleSpecial);return}
+ const noteSave=e.target.closest("[data-save-special-note]");if(noteSave){saveSpecialDayNote(noteSave.dataset.saveSpecialNote);return}
  const startSave=e.target.closest("#saveTrackingStartDate");if(startSave){setTrackingStartDate();return}
  const pendingReview=e.target.closest("#reviewPending");if(pendingReview){renderReconciliationModal();return}
 });
 $("#libraryModal").addEventListener("submit",e=>{if(e.target.id==="libraryHabitForm")submitHabitModal(e)});
-$("#specialDayDate").addEventListener("change",e=>{const value=e.target.value;if(validDateKey(value)&&value<=today())archiveSelectedDate=value;renderArchiveTools()});
-$("#specialDayNote").addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();saveSpecialDayNote()}});
+
 
 $("#libraryModal").addEventListener("change",e=>{
  const check=e.target.closest("[data-modal-dimension]");if(!check)return;
