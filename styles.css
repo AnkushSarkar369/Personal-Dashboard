@@ -1024,3 +1024,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
  .habit-leaders{height:calc(100% - 53px)}
  .archive-row{grid-template-columns:minmax(0,1fr) auto auto 12px;gap:8px}
 }
+
+
+/* Give the two data visualisations more of their existing quadrant space. */
+.weekly-chart{height:258px;padding-top:20px}
+.weekly-bars{height:204px}
+.spotlight-chart{padding-top:8px}
+.spotlight-svg{max-height:260px}
+@media(max-width:760px){
+ .weekly-chart{height:230px;padding-top:17px}
+ .weekly-bars{height:178px}
+ .spotlight-svg{max-height:230px}
+}
