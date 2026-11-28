@@ -239,16 +239,17 @@ function cycle(id,date,status){
  save();
 }
 function rawPoints(dimId,range){
- let total=0;const end=today(),start=range==="1m"?shiftDateKey(end,-29):range==="3m"?shiftDateKey(end,-89):(data.settings.trackingStartDate||end);
+ let balance=0;const end=today(),start=range==="1m"?shiftDateKey(end,-29):range==="3m"?shiftDateKey(end,-89):(data.settings.trackingStartDate||end);
  Object.entries(data.records||{}).forEach(([date,rec])=>{
   if(date<start||date<(data.settings.trackingStartDate||end)||date>end||isSpecialDay(date))return;
   Object.values(rec.items||{}).forEach(it=>{
    const s=it.snapshot;if(!s||!Array.isArray(s.points)||!OUTCOME_STATUSES.has(it.status))return;
-   const mult=it.status==="completed"?1:it.status==="mva"?(Number(s.mva)||.25):0;
-   s.points.forEach(x=>{if(x.dimensionId===dimId)total+=Number(x.points||0)*mult});
+   const multiplier=it.status==="completed"?1:it.status==="mva"?(Number(s.mva)||.25):it.status==="missed"?-1:0;
+   s.points.forEach(x=>{if(x.dimensionId===dimId)balance+=Number(x.points||0)*multiplier});
   });
  });
- return total;
+ // Keep the underlying balance signed, but expose only its non-negative portion to the radar.
+ return Math.max(0,balance);
 }
 function switchView(v){if(v==="stats"&&view!=="stats")statsSpotlightHabit=null;if(v==="tracker")selectedDate=today();view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
 function setSidebarOpen(open){
