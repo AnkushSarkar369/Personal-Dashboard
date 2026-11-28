@@ -239,17 +239,24 @@ function cycle(id,date,status){
  save();
 }
 function rawPoints(dimId,range){
- let balance=0;const end=today(),start=range==="1m"?shiftDateKey(end,-29):range==="3m"?shiftDateKey(end,-89):(data.settings.trackingStartDate||end);
+ let carriedBalance=0,periodBalance=0;
+ const end=today(),trackingStart=data.settings.trackingStartDate||end;
+ const start=range==="1m"?shiftDateKey(end,-29):range==="3m"?shiftDateKey(end,-89):trackingStart;
  Object.entries(data.records||{}).forEach(([date,rec])=>{
-  if(date<start||date<(data.settings.trackingStartDate||end)||date>end||isSpecialDay(date))return;
+  if(date<trackingStart||date>end||isSpecialDay(date))return;
   Object.values(rec.items||{}).forEach(it=>{
    const s=it.snapshot;if(!s||!Array.isArray(s.points)||!OUTCOME_STATUSES.has(it.status))return;
    const multiplier=it.status==="completed"?1:it.status==="mva"?(Number(s.mva)||.25):it.status==="missed"?-1:0;
-   s.points.forEach(x=>{if(x.dimensionId===dimId)balance+=Number(x.points||0)*multiplier});
+   s.points.forEach(x=>{
+    if(x.dimensionId!==dimId)return;
+    const amount=Number(x.points||0)*multiplier;
+    if(date<start)carriedBalance+=amount;
+    else periodBalance+=amount;
+   });
   });
  });
- // Keep the underlying balance signed, but expose only its non-negative portion to the radar.
- return Math.max(0,balance);
+ // Carry only an unpaid historical deficit into shorter views; prior positive points stay outside their window.
+ return Math.max(0,Math.min(0,carriedBalance)+periodBalance);
 }
 function switchView(v){if(v==="stats"&&view!=="stats")statsSpotlightHabit=null;if(v==="tracker")selectedDate=today();view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
 function setSidebarOpen(open){
