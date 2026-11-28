@@ -672,9 +672,10 @@ function isSpecialDay(date){return data.records?.[date]?.specialDay===true}
 function isPerformanceDate(date){return validDateKey(date)&&date>=(data.settings.trackingStartDate||today())&&date<=today()&&!isSpecialDay(date)}
 function inStatsRange(date){const {start,end}=statsDateRange();return isPerformanceDate(date)&&date>=start&&date<=end}
 function statsRecords(){return Object.entries(data.records||{}).filter(([date,record])=>inStatsRange(date)&&Object.values(record.items||{}).some(item=>OUTCOME_STATUSES.has(item?.status))).sort((a,b)=>a[0].localeCompare(b[0]))}
-function archiveRecords(){const {start,end}=statsDateRange();return Object.entries(data.records||{}).filter(([date,record])=>validDateKey(date)&&date>=start&&date<=end&&(Object.values(record.items||{}).some(item=>OUTCOME_STATUSES.has(item?.status))||record.specialDay||String(record.specialNote||"").trim())).sort((a,b)=>a[0].localeCompare(b[0]))}
+function archiveRecords(){const {start,end}=statsDateRange();return Object.entries(data.records||{}).filter(([date,record])=>validDateKey(date)&&date>=start&&date<=end&&(Object.values(record.items||{}).some(item=>OUTCOME_STATUSES.has(item?.status))||unrecordedOutcomeCount(record)>0||record.specialDay||String(record.specialNote||"").trim())).sort((a,b)=>a[0].localeCompare(b[0]))}
 function dailyRecordPoints(record){return Object.values(record?.items||{}).reduce((sum,item)=>sum+(item?.snapshot&&OUTCOME_STATUSES.has(item.status)?pointsFor(item.snapshot,item.status):0),0)}
 function knownOutcomeCount(record){return Object.values(record?.items||{}).filter(item=>OUTCOME_STATUSES.has(item?.status)).length}
+function unrecordedOutcomeCount(record){const items=record?.items||{};return new Set((Array.isArray(record?.acknowledgedUnrecordedIds)?record.acknowledgedUnrecordedIds:[]).filter(id=>!OUTCOME_STATUSES.has(items[id]?.status))).size}
 function isFullyLoggedDay(date,record){const expected=eligibleHabitIdsForDate(date);return expected.length>0&&expected.every(id=>OUTCOME_STATUSES.has(record?.items?.[id]?.status))}
 function statsHabitRecords(id){const rows=[];statsRecords().forEach(([date,record])=>{const item=record.items?.[id];if(item?.snapshot&&OUTCOME_STATUSES.has(item.status))rows.push({date,item})});return rows}
 function renderWeeklyDistribution(){
@@ -714,20 +715,22 @@ function renderHabitSpotlight(records=statsRecords()){
 }
 function renderDailyArchive(){
  const rows=archiveRecords().slice().reverse();
- let recorded=0,fully=0,special=0;
+ let recorded=0,fully=0,special=0,unrecorded=0;
  rows.forEach(([date,record])=>{
   if(record.specialDay)special++;
+  if(!record.specialDay&&unrecordedOutcomeCount(record)>0)unrecorded++;
   if(!isPerformanceDate(date)||knownOutcomeCount(record)===0)return;
   recorded++;
   if(isFullyLoggedDay(date,record))fully++;
  });
- $("#archiveSummary").textContent=recorded+" recorded · "+fully+" fully logged · "+special+" special";
+ $("#archiveSummary").textContent=recorded+" recorded · "+fully+" fully logged · "+unrecorded+" with unrecorded entries · "+special+" special";
  $("#dailyArchive").innerHTML=rows.length?rows.map(([date,record])=>{
-  const count=knownOutcomeCount(record),points=dailyRecordPoints(record),label=ARCHIVE_DATE_FORMATTER.format(new Date(date+"T12:00:00"));
+  const count=knownOutcomeCount(record),unknown=unrecordedOutcomeCount(record),points=dailyRecordPoints(record),label=ARCHIVE_DATE_FORMATTER.format(new Date(date+"T12:00:00"));
   const special=!!record.specialDay;
+  const status=special?"Excluded":count?count+" logged"+(unknown?" · "+unknown+" unknown":""):unknown?unknown+" unrecorded":"No activity";
   const note=String(record.specialNote||"").trim();
   const noteEditor=special&&editingSpecialDate===date?'<div class="archive-note-compact"><textarea rows="2" maxlength="500" data-special-note="'+esc(date)+'" aria-label="Reason for special day" placeholder="Why was this day special?">'+esc(record.specialNote||"")+'</textarea><button type="button" class="archive-note-save" data-save-special-note="'+esc(date)+'">Save</button></div>':"";
-  return '<div class="archive-entry"><div class="archive-entry-main"><button type="button" class="archive-row '+(special?'is-special':'')+'" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+'</span><span class="archive-count">'+(special?"Excluded":count+" logged")+'</span><strong class="archive-points">'+(special?"—":fmt(points)+' <small>pts</small>')+'</strong><span class="archive-open" aria-hidden="true">↗</span></button><button type="button" class="archive-row-star '+(special?'is-special':'')+'" data-toggle-special="'+esc(date)+'" aria-label="'+(special?"Remove Special Day":"Mark Special Day")+'" aria-pressed="'+special+'" '+(special&&note?'aria-describedby="archiveNoteTooltip"':"")+'>'+(special?"★":"☆")+'</button></div>'+noteEditor+'</div>';
+  return '<div class="archive-entry"><div class="archive-entry-main"><button type="button" class="archive-row '+(special?'is-special':'')+'" data-open-day="'+esc(date)+'" aria-label="Open '+esc(label)+' record"><span class="archive-date">'+esc(label)+'</span><span class="archive-count">'+status+'</span><strong class="archive-points">'+(special||count===0?"—":fmt(points)+' <small>pts</small>')+'</strong><span class="archive-open" aria-hidden="true">↗</span></button><button type="button" class="archive-row-star '+(special?'is-special':'')+'" data-toggle-special="'+esc(date)+'" aria-label="'+(special?"Remove Special Day":"Mark Special Day")+'" aria-pressed="'+special+'" '+(special&&note?'aria-describedby="archiveNoteTooltip"':"")+'>'+(special?"★":"☆")+'</button></div>'+noteEditor+'</div>';
  }).join(""):'<div class="stats-empty">No recorded days in this period.</div>';
 }
 function saveSpecialDayNote(date){
