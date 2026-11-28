@@ -707,12 +707,10 @@ function renderHabitSpotlight(records=statsRecords()){
   const entries=entriesByHabit.get(id)||[];
   entries.push({date,item});entriesByHabit.set(id,entries);
  }));
- const eligible=data.habits.map(h=>({habit:h,entries:entriesByHabit.get(h.id)||[]})).filter(x=>x.entries.length)
-  .sort((a,b)=>a.habit.name.localeCompare(b.habit.name,undefined,{sensitivity:"base",numeric:true})||a.habit.id.localeCompare(b.habit.id));
+ const eligible=data.habits.filter(h=>h.active&&!h.archived).map(h=>({habit:h,entries:entriesByHabit.get(h.id)||[]})).filter(x=>x.entries.length);
  if(!eligible.length){statsSpotlightHabit=null;$("#spotlightName").textContent="No Habit History";host.innerHTML='<div class="stats-empty">No habit activity in the selected period.</div>';return}
- // Rotate deterministically by calendar day so the spotlight advances daily without changing on every render.
- const dayIndex=Math.floor(Date.parse(today()+"T00:00:00Z")/86400000)%eligible.length;
- const choice=eligible[dayIndex];
+ // Choose a fresh random active habit on every Statistics render.
+ const choice=eligible[Math.floor(Math.random()*eligible.length)];
  statsSpotlightHabit=choice.habit.id;
  const h=choice.habit;
  $("#spotlightName").textContent=h.name;$("#spotlightName").dataset.preserveCase="";
