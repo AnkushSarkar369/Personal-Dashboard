@@ -238,7 +238,7 @@ function cycle(id,date,status){
  }
  save();
 }
-function rawPoints(dimId,range){
+function dimensionNetBalance(dimId,range="all"){
  let carriedBalance=0,periodBalance=0;
  const end=today(),trackingStart=data.settings.trackingStartDate||end;
  const start=range==="1m"?shiftDateKey(end,-29):range==="3m"?shiftDateKey(end,-89):trackingStart;
@@ -256,8 +256,10 @@ function rawPoints(dimId,range){
   });
  });
  // Carry only an unpaid historical deficit into shorter views; prior positive points stay outside their window.
- return Math.max(0,Math.min(0,carriedBalance)+periodBalance);
+ return Math.min(0,carriedBalance)+periodBalance;
 }
+function rawPoints(dimId,range){return Math.max(0,dimensionNetBalance(dimId,range))}
+function dimensionDebtPoints(dimId){return Math.max(0,-dimensionNetBalance(dimId,"all"))}
 function switchView(v){if(v==="stats"&&view!=="stats")statsSpotlightHabit=null;if(v==="tracker")selectedDate=today();view=v;render();window.scrollTo({top:0,behavior:"smooth"})}
 function setSidebarOpen(open){
  const app=$(".app"),button=$("#sidebarClose");
@@ -705,14 +707,12 @@ function renderHabitSpotlight(records=statsRecords()){
   const entries=entriesByHabit.get(id)||[];
   entries.push({date,item});entriesByHabit.set(id,entries);
  }));
- const eligible=data.habits.map(h=>({habit:h,entries:entriesByHabit.get(h.id)||[]})).filter(x=>x.entries.length);
+ const eligible=data.habits.map(h=>({habit:h,entries:entriesByHabit.get(h.id)||[]})).filter(x=>x.entries.length)
+  .sort((a,b)=>a.habit.name.localeCompare(b.habit.name,undefined,{sensitivity:"base",numeric:true})||a.habit.id.localeCompare(b.habit.id));
  if(!eligible.length){statsSpotlightHabit=null;$("#spotlightName").textContent="No Habit History";host.innerHTML='<div class="stats-empty">No habit activity in the selected period.</div>';return}
- const selected=eligible.find(x=>x.habit.id===statsSpotlightHabit);
- const choice=selected||eligible.slice().sort((a,b)=>{
-  const countDiff=b.entries.length-a.entries.length;if(countDiff)return countDiff;
-  const points=x=>x.entries.reduce((sum,row)=>sum+pointsFor(row.item.snapshot,row.item.status),0);
-  const scoreDiff=points(b)-points(a);return scoreDiff||a.habit.name.localeCompare(b.habit.name);
- })[0];
+ // Rotate deterministically by calendar day so the spotlight advances daily without changing on every render.
+ const dayIndex=Math.floor(Date.parse(today()+"T00:00:00Z")/86400000)%eligible.length;
+ const choice=eligible[dayIndex];
  statsSpotlightHabit=choice.habit.id;
  const h=choice.habit;
  $("#spotlightName").textContent=h.name;$("#spotlightName").dataset.preserveCase="";
@@ -826,6 +826,11 @@ function renderSettings(){
  $("#reviewPending").hidden=pending===0;$("#reviewPending").textContent="Review "+pending+" Unrecorded";$("#reviewPending").title="Open the list of historical habit entries that still need an outcome.";
  $("#trackingStartDetail").textContent="Tracking from "+data.settings.trackingStartDate+". Earlier records are retained but excluded from performance statistics.";
  $("#storageDetail").textContent=dataFolder?"Connected Folder. Automatic JSON Backup Is Enabled.":"Browser Storage Is Active. Folder-Based Saving Is Optional And Only Available In Supported Browsers.";
+ const dimensions=data.dimensions.filter(d=>!d.archived);
+ $("#dimensionDebtCards").innerHTML=dimensions.length?dimensions.map((d,i)=>{
+  const debt=dimensionDebtPoints(d.id),color=safeColor(d.color,DIMENSION_COLORS[i%DIMENSION_COLORS.length]);
+  return '<article class="dimension-debt-card" style="--dimension-accent:'+esc(color)+'"><span class="dimension-debt-name">'+esc(d.name)+'</span><strong>'+fmt(debt)+' <small>pts</small></strong><span class="dimension-debt-state">'+(debt>0?"Outstanding debt":"No outstanding debt")+'</span></article>';
+ }).join(""):'<div class="empty-state">Create a dimension to see its debt balance.</div>';
 }
 function setTrackingStartDate(){
  const next=$("#trackingStartDate").value;
@@ -958,9 +963,16 @@ $("#libraryModal").addEventListener("change",e=>{
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#libraryModal").hidden)closeHabitModal()});
 $("#mvaRange").oninput=e=>{$("#mvaValue").textContent=Number(e.target.value).toFixed(2)+"×"};
 $("#mvaRange").onchange=e=>{
- data.settings.mva=Number(e.target.value);
- data.habits.filter(h=>h.active&&!h.archived).forEach(h=>refreshHabitEligibility(h,today()));
- save();toast("MVA Multiplier Updated For Future Activity.");
+ const multiplier=Number(e.target.value);
+ data.settings.mva=multiplier;
+ // Treat the MVA multiplier as a global scoring rule: reprice every saved MVA snapshot and every eligibility period.
+ Object.values(data.records||{}).forEach(record=>Object.values(record.items||{}).forEach(item=>{
+  if(item?.snapshot)item.snapshot.mva=multiplier;
+ }));
+ Object.values(data.eligibility?.habits||{}).forEach(history=>{
+  if(Array.isArray(history))history.forEach(period=>{period.mva=multiplier});
+ });
+ save();toast("MVA Multiplier Applied To All Records.");
 };
 $("#defaultBenchmark").onchange=e=>{data.settings.defaultBenchmark=Math.max(1,Number(e.target.value)||1000);save()};
 $("#exportData").onclick=exportData;
