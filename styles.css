@@ -1464,3 +1464,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex="0"]:foc
  .archive-note-tooltip{max-width:calc(100vw - 20px)}
 }
 
+
+
+/* Dimension debt: compact per-dimension balances in Settings. */
+.dimension-debt-settings{margin-top:14px}
+.dimension-debt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:7px}
+.dimension-debt-card{display:flex;min-width:0;flex-direction:column;gap:7px;padding:15px 16px;border:1px solid rgba(112,126,149,.2);border-top:2px solid var(--dimension-accent);border-radius:10px;background:linear-gradient(145deg,rgba(12,17,25,.82),rgba(17,23,33,.88))}
+.dimension-debt-name{overflow:hidden;color:#c9d1df;font-size:10px;font-weight:650;letter-spacing:.035em;text-overflow:ellipsis;white-space:nowrap}
+.dimension-debt-card strong{color:#edf0f6;font-family:var(--font-mono);font-size:23px;font-weight:550;font-variant-numeric:tabular-nums}
+.dimension-debt-card strong small{color:#8490a2;font-family:var(--font-sans);font-size:9px;font-weight:500}
+.dimension-debt-state{color:#7f8a9c;font-size:9px}
+@media(max-width:760px){.dimension-debt-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.dimension-debt-card{padding:13px}}
+@media(max-width:390px){.dimension-debt-grid{grid-template-columns:1fr}}
