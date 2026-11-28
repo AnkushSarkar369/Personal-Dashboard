@@ -1043,5 +1043,13 @@ document.addEventListener("focusout",e=>{if(e.target.closest&&e.target.closest("
 render();
 try{if(localStorage.getItem("habitRadarSidebarOpen")==="0")setSidebarOpen(false)}catch(e){}
 prepareReconciliationAtLaunch();
-let lastDay=today();setInterval(()=>{if(view==="tracker"&&selectedDate===today()){const now=new Date(),day=today();$("#liveClock").innerHTML=clockMarkup(now);if(day!==lastDay){lastDay=day;renderTracker()}}},1000);
+let lastDay=today();setInterval(()=>{
+ const day=today();
+ if(day!==lastDay){
+  lastDay=day;
+  if(view==="stats")renderStats();
+  else if(view==="tracker"&&selectedDate===day)renderTracker();
+ }
+ if(view==="tracker"&&selectedDate===day)$("#liveClock").innerHTML=clockMarkup(new Date());
+},1000);
 })();
